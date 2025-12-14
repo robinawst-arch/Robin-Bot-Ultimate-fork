@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Robin API Panel</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #0d0d0d;
+            color: #fff;
+        }
+        header {
+            padding: 20px;
+            background: #1a1a1a;
+            text-align: center;
+            font-size: 26px;
+            font-weight: bold;
+            border-bottom: 2px solid #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 30px auto;
+            padding: 20px;
+            background: #111;
+            border-radius: 10px;
+            box-shadow: 0 0 15px #000;
+        }
+        .api-box {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #1a1a1a;
+            border-left: 4px solid #00c3ff;
+            border-radius: 5px;
+        }
+        .api-box h2 {
+            margin: 0 0 10px;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            background: #0f0f0f;
+            color: #fff;
+        }
+        button {
+            padding: 10px 20px;
+            border-radius: 5px;
+            border: none;
+            background: #00c3ff;
+            color: #000;
+            font-size: 16px;
+            cursor: pointer;
+            transition: .2s;
+        }
+        button:hover {
+            background: #008bb7;
+        }
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+    <header>Robin API Panel</header>
+
+    <div class="container">
+        <div class="api-box">
+            <h2>AI API</h2>
+            <input id="aiText" placeholder="Enter your prompt..." />
+            <button onclick="callAI()">Run</button>
+        </div>
+
+        <div class="api-box">
+            <h2>YouTube Downloader</h2>
+            <input id="ytLink" placeholder="Enter YouTube URL" />
+            <button onclick="callYT()">Download</button>
+        </div>
+
+        <div class="api-box">
+            <h2>TikTok Downloader</h2>
+            <input id="tkLink" placeholder="Enter TikTok URL" />
+            <button onclick="callTikTok()">Download</button>
+        </div>
+    </div>
+
+    <footer>Powered by Robin & Moyna ❤️</footer>
+
+    <script>
+        function callAI() {
+            const q = document.getElementById('aiText').value;
+            window.open(`/api/ai?prompt=${encodeURIComponent(q)}`);
+        }
+        function callYT() {
+            const q = document.getElementById('ytLink').value;
+            window.open(`/api/yt?url=${encodeURIComponent(q)}`);
+        }
+        function callTikTok() {
+            const q = document.getElementById('tkLink').value;
+            window.open(`/api/tiktok?url=${encodeURIComponent(q)}`);
+        }
+    </script>
+</body>
+</html>

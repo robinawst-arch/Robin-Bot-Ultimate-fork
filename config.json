@@ -1,0 +1,155 @@
+{
+  "language": "en",
+  "DeveloperMode": false,
+  "autoCreateDB": true,
+  "notiGroup": true,
+  "NOTIFICATION": true,
+  "allowInbox": false,
+  "autoClean": true,
+
+  "commandDisabled": [],
+  "eventDisabled": [],
+
+  "EMAIL": "",
+  "PASSWORD": "",
+  "OTPKEY": "",
+
+  "BOTNAME": "ময়না🕊️",
+  "PREFIX": "/",
+  "ADMINBOT": ["100091520325159"],
+
+
+  "PASTEBIN_API_KEY": "Z635ZkDQVUuSPHWrAtO_tY7cproIPhnj",
+
+  "NDH": ["100091520325159"],
+
+  "DATABASE": {
+    "sqlite": {
+      "storage": "data.sqlite"
+    }
+  },
+
+  "APPSTATEPATH": "appstate.json",
+
+  "FCAOption": {
+    "forceLogin": true,
+    "listenEvents": true,
+    "pauseLog": true,
+    "logLevel": "error",
+    "selfListen": false,
+    "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 15_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.1 Mobile/15E148 Safari/604.1"
+  },
+
+  "version": "1.0.0",
+
+  "menu": {
+    "autoUnsend": true,
+    "delayUnsend": 55
+  },
+
+  "help": {
+    "autoUnsend": true,
+    "delayUnsend": 120
+  },
+
+  "help2": {
+    "autoUnsend": true,
+    "delayUnsend": 300
+  },
+
+  "help3": {
+    "autoUnsend": true,
+    "delayUnsend": 300
+  },
+
+  "helpall": {
+    "autoUnsend": true,
+    "delayUnsend": 20
+  },
+
+  "daily": {
+    "cooldownTime": 43200000,
+    "rewardCoin": 1000
+  },
+
+  "work": {
+    "cooldownTime": 1200000
+  },
+
+  "cavevip": {
+    "cooldownTime": 1200000
+  },
+
+  "lixi": {
+    "cooldownTime": 1100000
+  },
+
+  "voice": {
+    "zalo_apikey": "",
+    "fpt_apikey": ""
+  },
+
+  "weather": {
+    "OPEN_WEATHER": ""
+  },
+
+  "instagram": {
+    "APIKEY": ""
+  },
+
+  "sing": {
+    "YOUTUBE_API": "",
+    "API_KEY": "",
+    "SOUNDCLOUD_API": ""
+  },
+
+  "tiktok": {
+    "API_KEY": ""
+  },
+
+  "tikvd": {
+    "API_KEY": ""
+  },
+
+  "shortlink": {
+    "bitlyAPI": ""
+  },
+
+  "sim": {
+    "APIKEY": ""
+  },
+
+  "gif": {
+    "TENOR": ""
+  },
+
+  "rname": {
+    "APIKEY": ""
+  },
+
+  "cardinfo": {
+    "APIKEY": ""
+  },
+
+  "mkt": {
+    "APIKEY": ""
+  },
+
+  "adminUpdate": {
+    "autoUnsend": true,
+    "sendNoti": true,
+    "timeToUnsend": 10
+  },
+
+  "god": {
+    "enable": true
+  },
+
+  "adminOnly": false,
+  "ndhOnly": false,
+  "adminPaOnly": false,
+
+  "log": {
+    "enable": true
+  }
+}

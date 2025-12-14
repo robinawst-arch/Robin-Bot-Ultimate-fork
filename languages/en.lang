@@ -1,0 +1,177 @@
+# Moyna Bot - Language File (English + Bangla)
+# Created for Robin ❤️ by Moyna
+
+# ============================
+# Cyber.js / Core System
+# ============================
+
+Cyber.newVersionDetected=You are using version %1, but the latest version is %2.
+Cyber.errorFormat=Malformed module detected!
+Cyber.nameExist=A module with this name already exists!
+Cyber.notFoundLanguage=Module %1 does not support your selected language.
+Cyber.notFoundPackage=Cannot find required package %1 for module %2, installing...
+Cyber.cantInstallPackage=Cannot install package %1 for module %2, error: %3
+Cyber.loadedPackage=Installed package successfully for module %1
+Cyber.loadedConfig=Loaded config successfully for module %1
+Cyber.cantLoadConfig=Failed to load config for module %1, error: %2
+Cyber.cantOnload=Failed to launch setup of module %1, error: %1
+Cyber.successLoadModule=Successfully loaded module %1
+Cyber.failLoadModule=Failed to load module %1, error: %2
+Cyber.finishLoadModule=Loaded %1 module commands and %2 module events successfully
+Cyber.foundPathAppstate=Appstate file found and loaded successfully
+Cyber.notFoundPathAppstate=Error: Cannot find appstate file, maybe file is malformed!
+Cyber.checkListGban=Checking global ban list...
+Cyber.banDevice=Your device has been banned from using *Moyna Bot*.\nPlease contact Robin for unban support.
+Cyber.keyNotSameFormat=Wrong format! Unban key must be 6 digits.
+Cyber.codeInputExpired=Invalid or expired unban key!
+Cyber.unbanDeviceSuccess=Your device has been successfully unbanned. Please restart the bot.
+Cyber.userBanned=You were banned on %1 for reason: %2\nContact Robin for support.
+Cyber.finishCheckListGban=Global ban list checked.
+Cyber.handleListenError=Unexpected error in handleListen: %1
+Cyber.warningSourceCode=⚠️ WARNING! SOURCE CODE STRUCTURE CHANGED. BOT STOPPED!
+Cyber.refreshListen=Refreshed listener successfully.
+Cyber.successConnectDatabase=Database connected successfully!
+Cyber.failConnectDatabase=Database connection failed: %1
+
+# ============================
+# includes/listen.js
+# ============================
+
+listen.startLoadEnvironment=Loading environment variables...
+listen.loadedEnvironmentThread=Thread environment loaded successfully.
+listen.loadedEnvironmentUser=User environment loaded successfully.
+listen.successLoadEnvironment=All environment variables loaded.
+listen.failLoadEnvironment=Failed to load environment variables: %1
+
+# ============================
+# currencies.js
+# ============================
+
+currencies.needObjectOrArray=Value must be an Array or Object.
+currencies.needObject=Value must be an Object.
+currencies.needNumber=Value must be a Number.
+
+# ============================
+# threads.js
+# ============================
+
+threads.needObjectOrArray=Value must be an Array or Object.
+threads.needObject=Value must be an Object.
+
+# ============================
+# users.js
+# ============================
+
+users.needObjectOrArray=Value must be an Array or Object.
+users.needObject=Value must be an Object.
+
+# ============================
+# handleCommand.js
+# ============================
+
+handleCommand.userBanned=বক্সে বাজে কাজ করার অপরাধে তোমাকে ব্যান করা হয়েছে ❌
+handleCommand.threadBanned=এই গ্রুপটি Moyna Bot দ্বারা ব্যান করা হয়েছে ⛔\nUnban চাইলে Robin এর সাথে যোগাযোগ করুন।
+handleCommand.commandNotExist=━━━━━━━✦━━━━━━━\n✨ Assalamu Alaikum! ✨\n━━━━━━━✦━━━━━━━\n\nInvalid Command!\nCould it be:\n\n•—» %1 «—•\n\nPlease check again! 💙
+handleCommand.commandThreadBanned=Your thread cannot use command "%1"
+handleCommand.commandUserBanned=You cannot use command "%1"
+handleCommand.threadNotAllowNSFW=This command is restricted and cannot be used here.
+handleCommand.cantGetInfoThread=Unable to get thread info, error: %1
+handleCommand.permssionNotEnough="%1"\n\n⛔ Only Robin can use this command.\n🙂 You are not allowed to use it.\n\n"%1"\n⛔ শুধু Robin এই কমান্ড ব্যবহার করতে পারবে।
+handleCommand.cantSetMessageReaction=Failed to set message reaction, error: %1
+handleCommand.executeCommand=[ %1 ] Command: %2 | User: %3 | Thread: %4 | Args: %5 | Time: %6ms
+handleCommand.commandError=Error while running command %1, error: %2
+
+# ============================
+# handleCommandEvent.js
+# ============================
+
+handleCommandEvent.moduleError=Unexpected error in event command %1, error: %2
+
+# ============================
+# handleCreateDatabase.js
+# ============================
+
+handleCreateDatabase.newThread=New thread added: %1
+handleCreateDatabase.newUser=New user added: %1
+
+# ============================
+# handleEvent.js
+# ============================
+
+handleEvent.executeEvent=[ %1 ] Event: %2 | Thread: %3 | Time: %4ms
+handleEvent.eventError=Error while executing event %1, error: %12
+
+# ============================
+# handleReaction.js
+# ============================
+
+handleReaction.missingValue=Missing value for your request.
+handleReaction.executeError=Error while processing reaction, error: %1
+
+# ============================
+# handleReply.js
+# ============================
+
+handleReply.missingValue=Missing value for reply.
+handleReply.executeError=Error while processing reply, error: %1
+
+# ============================
+# handleSchedule.js
+# ============================
+
+handleSchedule.exectuteError=Error while running scheduled module %1, error: %2
+
+# ============================
+# utils/index.js
+# ============================
+
+utils.throwError=⚠️ Command not working!\nUse %1help %2 for guidance.
+
+# ============================
+# updater.js
+# ============================
+
+updater.latestVersion=You are using the latest version.
+updater.cantFindVersion=Undefined version: %1\nCheck package.json.
+updater.newVersions=%1 new versions found! Updating...
+updater.updateSuccess=Updated successfully%1
+updater.configChanged=Config %1 has changed, check config.json.
+updater.installingPackages=Installing required dependencies...
+updater.installSuccess=Dependencies installed! Restart bot to apply.
+updater.backupSuccess=Backup completed, saved in %1 folder.
+updater.restartToApply=Restart bot to apply new version.
+updater.skipFile=New version of %1 detected, but skipped due to comment %2.
+
+# ============================
+# Commands - kick.js
+# ============================
+
+kick.error=Error! An error occurred. Please try again later!
+kick.needPermssion=Need group admin\nPlease add and try again!
+kick.missingTag=You need tag some person to kick
+
+# ============================
+# Commands - unsend.js
+# ============================
+
+unsend.cantUnsend=❌ I can only unsend my own messages!
+unsend.needReply=⚠️ Reply to my message to unsend it!
+
+# ============================
+# Commands - pending.js
+# ============================
+
+pending.invaildNumber=❌ %1 is not a valid number!
+pending.cancelSuccess=╔═══════════════════════╗ ║  ✅ 𝐒𝐮𝐜𝐜𝐞𝐬𝐬𝐟𝐮𝐥𝐥𝐲 𝐑𝐞𝐟𝐮𝐬𝐞𝐝  ║ ╚═══════════════════════╝  🚫 Refused: %1 group(s)  © Robin-Bot
+pending.notiBox=╔══════════════════════════╗ ║ ✅ 𝐁𝐎𝐓 𝐀𝐂𝐂𝐄𝐒𝐒 𝐀𝐏𝐏𝐑𝐎𝐕𝐄𝐃 ✅ ║ ╚══════════════════════════╝  🤖 𝗥𝗼𝗯𝗶𝗻 𝗕𝗼𝘁 is now active! 💬 Type /help to see commands  ━━━━━━━━━━━━━━━━━━━━ © Developed by Robin-Bot
+pending.approveSuccess=╔═══════════════════════╗ ║ ✅ 𝐒𝐮𝐜𝐜𝐞𝐬𝐬𝐟𝐮𝐥𝐥𝐲 𝐀𝐩𝐩𝐫𝐨𝐯𝐞𝐝 ║ ╚═══════════════════════╝  ✨ Approved: %1 group(s)  © Robin-Bot
+pending.cantGetPendingList=❌ Can't get the pending list!
+pending.returnListPending=╔════════════════════════════╗ ║   📋 𝐏𝐄𝐍𝐃𝐈𝐍𝐆 𝐆𝐑𝐎𝐔𝐏𝐒 𝐋𝐈𝐒𝐓   ║ ╚════════════════════════════╝  📊 𝗧𝗼𝘁𝗮𝗹 𝗣𝗲𝗻𝗱𝗶𝗻𝗴: %1 group(s)  ━━━━━━━━━━━━━━━━━━━━━━━━━━ %2 ━━━━━━━━━━━━━━━━━━━━━━━━━━  💡 𝗛𝗼𝘄 𝘁𝗼 𝗨𝘀𝗲: ▸ Reply with number to approve ▸ Reply 'c <number>' to refuse  ━━━━━━━━━━━━━━━━━━━━━━━━━━ © Robin-Bot
+pending.returnListClean=╔═══════════════════════╗ ║  ✅ 𝐍𝗼 𝐏𝐞𝐧𝐝𝐢𝐧𝐠 𝐆𝐫𝐨𝐮𝐩𝐬  ║ ╚═══════════════════════╝  ✨ All groups are approved!  © Robin-Bot
+
+# ============================
+# Commands - sendnoti.js
+# ============================
+
+sendnoti.sendSuccess=✅ Sent message to %1 threads
+sendnoti.sendFail=⚠️ Failed to send message to %1 threads
