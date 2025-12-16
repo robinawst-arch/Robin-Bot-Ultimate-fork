@@ -1,48 +1,54 @@
 // =============================================
-// ROBIN x MOYNA BOT – MODULAR ARCHITECTURE (FULL FIXED)
+// ROBIN x MOYNA BOT – FINAL PRODUCTION BUILD
 // Auto Commands Loader + NoPrefix + Reply System
-// Stable for Render / Railway / Cyclic
+// Render / Railway / Fly.io SAFE
 // Credit: ROBIN ❤️
 // =============================================
 
-// ================= KEEP ALIVE SERVER (FIRST - RENDER SAFE) =================
+// ===================== KEEP ALIVE SERVER (MUST BE FIRST) =====================
 const express = require("express");
 const app = express();
 
 app.get("/", (req, res) => {
-  res.status(200).send("💙 Robin x Moyna Bot Active");
+  res.status(200).send("💙 Robin x Moyna Bot Alive");
 });
 
 const PORT = process.env.PORT;
 if (!PORT) {
-  console.error("❌ PORT not found. Render will stop the service.");
+  console.error("❌ PORT not found. Platform will stop the service.");
   process.exit(1);
 }
 
-app.listen(PORT, () => {
-  console.log(`🌍 KeepAlive Running on port ${PORT}`);
+const server = app.listen(PORT, () => {
+  console.log(`🌍 KeepAlive server running on port ${PORT}`);
 });
 
-// Render idle protection
+// Internal heartbeat (Render idle protection)
 setInterval(() => {
-  console.log("🫀 Render heartbeat alive");
+  console.log("🫀 Heartbeat: bot process alive");
 }, 1000 * 60 * 4);
 
-// ================= IMPORTS =================
+// ===================== IMPORTS =====================
 const fs = require("fs");
 const path = require("path");
 const login = require("priyanshu-fca");
 
-// Import modular components
-const { log, banner, loadLanguage, initGetText } = require("./utils/helpers");
+// Modular helpers
+const {
+  log,
+  banner,
+  loadLanguage,
+  initGetText
+} = require("./utils/helpers");
+
 const setupGlobals = require("./includes/globalSetup");
 const loadCommands = require("./includes/commandLoader");
 const { checkReply } = require("./includes/eventHandler");
 
-// ================= LOAD CONFIG =================
+// ===================== LOAD CONFIG =====================
 const configPath = path.join(__dirname, "config.json");
 if (!fs.existsSync(configPath)) {
-  log("ERROR", "config.json missing!");
+  console.error("❌ config.json missing");
   process.exit(1);
 }
 const config = require(configPath);
@@ -50,35 +56,32 @@ const config = require(configPath);
 const PREFIX = config.PREFIX || "/";
 const BOTNAME = config.BOTNAME || "Moyna";
 
-// ================= LOAD APPSTATE =================
+// ===================== LOAD APPSTATE =====================
 const appStatePath = path.join(
   __dirname,
   config.APPSTATEPATH || "appstate.json"
 );
+
 if (!fs.existsSync(appStatePath)) {
-  log("ERROR", "appstate.json missing!");
+  console.error("❌ appstate.json missing");
   process.exit(1);
 }
 
-// ================= GLOBAL SETUP =================
+// ===================== GLOBAL INIT =====================
 setupGlobals(config, configPath, __dirname);
-
-// ================= INIT LANGUAGE =================
 initGetText();
 
-// Includes
 const Users = require("./includes/Users.js");
 const Threads = require("./includes/Threads.js");
 
-// ===================================================
-// 📌 LOGIN
-// ===================================================
+// ===================== LOGIN =====================
 log("SYSTEM", "Logging in…");
 
 login({ appState: require(appStatePath) }, async (err, api) => {
   if (err) {
     log("LOGIN-ERROR", err);
-    return setTimeout(() => process.exit(1), 5000);
+    // Let platform restart cleanly
+    return setTimeout(() => process.exit(0), 5000);
   }
 
   banner();
@@ -87,7 +90,7 @@ login({ appState: require(appStatePath) }, async (err, api) => {
   Users.setAPI(api);
   Threads.setAPI(api);
 
-  // ===== SEND MESSAGE WRAPPER =====
+  // ================= SEND MESSAGE WRAPPER =================
   global.sendMessageWithTyping = async function (
     message,
     threadID,
@@ -100,70 +103,67 @@ login({ appState: require(appStatePath) }, async (err, api) => {
         threadID,
         (err, info) => {
           if (err) reject(err);
-          else resolve(info);
+          else {
+            if (callback) callback(err, info);
+            resolve(info);
+          }
         },
         messageID
       );
     });
   };
 
-  // ===== AUTO-REFRESH APPSTATE =====
+  // ================= APPSTATE AUTO REFRESH =================
   setInterval(() => {
     try {
-      const newAppState = api.getAppState();
-      fs.writeFileSync(appStatePath, JSON.stringify(newAppState, null, 2));
-      log("SYSTEM", "✅ Appstate auto-refreshed");
+      const newState = api.getAppState();
+      fs.writeFileSync(appStatePath, JSON.stringify(newState, null, 2));
+      log("SYSTEM", "✅ Appstate refreshed");
     } catch (e) {
-      log("WARN", "Appstate refresh failed: " + e.message);
+      log("WARN", "Appstate refresh failed");
     }
   }, 1000 * 60 * 30);
 
-  // ===== API OPTIONS =====
+  // ================= API OPTIONS =================
   api.setOptions({
     listenEvents: true,
     forceLogin: true,
-    logLevel: "silent",
     selfListen: false,
+    logLevel: "silent",
     userAgent:
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
   });
 
-  // ===== LOAD LANGUAGE & COMMANDS =====
+  // ================= LOAD SYSTEMS =================
   loadLanguage(__dirname, log);
   loadCommands(log, __dirname);
 
-  // ===== LOAD THREADS =====
   try {
-    const threadList = await api.getThreadList(100, null, ["INBOX"]);
-    global.data.allThreadID = threadList.map((t) => t.threadID);
+    const threads = await api.getThreadList(100, null, ["INBOX"]);
+    global.data.allThreadID = threads.map(t => t.threadID);
     log("SYSTEM", `Loaded ${global.data.allThreadID.length} threads`);
-  } catch (e) {
-    log("WARN", "Could not load thread list");
+  } catch {
+    log("WARN", "Thread list load failed");
   }
 
-  log("ROBIN", `${BOTNAME} successfully logged in!`);
+  log("ROBIN", `${BOTNAME} logged in successfully`);
   log("MOYNA", "Bot online 💙");
 
-  // ===================================================
-  // 📌 LISTENER
-  // ===================================================
+  // ===================== LISTENER =====================
   api.listenMqtt(async (err, event) => {
     if (err || !event) return;
 
     const body = event.body ? event.body.trim() : "";
 
-    // ---------- HANDLE REPLY ----------
+    // Reply handler
     try {
       await checkReply(api, event, log);
     } catch {}
 
-    // ---------- HANDLE EVENT TYPES ----------
+    // Event types (subscribe, unsend, etc.)
     if (global.client.events && event.logMessageType) {
       for (const evt of global.client.events.values()) {
-        if (
-          evt.config?.eventType &&
-          evt.config.eventType.includes(event.logMessageType)
-        ) {
+        if (evt.config?.eventType?.includes(event.logMessageType)) {
           try {
             await evt.run({
               api,
@@ -177,7 +177,7 @@ login({ appState: require(appStatePath) }, async (err, api) => {
       }
     }
 
-    // ---------- HANDLE ALL EVENTS ----------
+    // handleEvent (global)
     if (global.client.events) {
       for (const evt of global.client.events.values()) {
         if (typeof evt.handleEvent === "function") {
@@ -194,7 +194,7 @@ login({ appState: require(appStatePath) }, async (err, api) => {
       }
     }
 
-    // ---------- NO PREFIX COMMANDS ----------
+    // No-prefix commands
     for (const cmd of global.client.commands.values()) {
       if (typeof cmd.handleEvent === "function") {
         try {
@@ -210,7 +210,7 @@ login({ appState: require(appStatePath) }, async (err, api) => {
       }
     }
 
-    // ---------- PREFIX COMMAND ----------
+    // Prefix commands
     if (!body.startsWith(PREFIX)) return;
 
     const args = body.slice(PREFIX.length).trim().split(/\s+/);
@@ -219,10 +219,7 @@ login({ appState: require(appStatePath) }, async (err, api) => {
 
     if (!cmd) {
       if (commandName === "ping") {
-        return api.sendMessage(
-          "🏓 Pong! Bot is active 💙",
-          event.threadID
-        );
+        return api.sendMessage("🏓 Pong! Bot is active 💙", event.threadID);
       }
       return;
     }
@@ -243,7 +240,24 @@ login({ appState: require(appStatePath) }, async (err, api) => {
   });
 });
 
-// ================= PROCESS SAFETY =================
+// ===================== GRACEFUL SHUTDOWN (IMPORTANT) =====================
+global.isRestarting = false;
+
+const gracefulExit = (signal) => {
+  if (global.isRestarting) return;
+  console.log(`🛑 Graceful shutdown (${signal})`);
+
+  server.close(() => {
+    setTimeout(() => {
+      process.exit(0); // clean exit (no failure detect)
+    }, 1000);
+  });
+};
+
+process.on("SIGTERM", gracefulExit);
+process.on("SIGINT", gracefulExit);
+
+// ===================== SAFETY NET =====================
 process.on("unhandledRejection", (reason) => {
   console.error("UnhandledPromiseRejection:", reason);
 });
