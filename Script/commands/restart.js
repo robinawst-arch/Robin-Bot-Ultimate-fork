@@ -1,70 +1,66 @@
 module.exports.config = {
   name: "restart",
-  version: "2.0.0",
-  hasPermssion: 2, // 🔒 Admin only
+  version: "4.0.0",
+  hasPermssion: 2, // admin only
   credits: "ROBIN ❤️ MOYNA",
-  description: "Restart the bot with animated status",
+  description: "Safely restart the bot (Render friendly)",
   commandCategory: "system",
   usages: "/restart",
-  cooldowns: 5
+  cooldowns: 10
 };
 
 module.exports.run = async function ({ api, event }) {
-  const threadID = event.threadID;
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  let msgID = null;
 
-  // Helper delay
-  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+  const update = async (text) => {
+    if (msgID) await api.unsendMessage(msgID);
+    const info = await api.sendMessage(text, event.threadID);
+    msgID = info.messageID;
+  };
 
-  // Step 1
-  await api.sendMessage(
+  await update(
 `🔄 Restarting bot...
 
 🔋 Status:
 ▰▱▱▱▱ 10%
 
-⏳ Initializing restart...`,
-    threadID
+⏳ Initializing restart...`
   );
   await sleep(700);
 
-  // Step 2
-  await api.sendMessage(
+  await update(
 `🔄 Restarting bot...
 
 🔋 Status:
 ▰▰▱▱▱ 30%
 
-⚙️ Shutting down modules...`,
-    threadID
+⚙️ Shutting down modules...`
   );
   await sleep(700);
 
-  // Step 3
-  await api.sendMessage(
+  await update(
 `🔄 Restarting bot...
 
 🔋 Status:
 ▰▰▰▱▱ 60%
 
-🧠 Saving state & sessions...`,
-    threadID
+🧠 Saving sessions & state...`
   );
   await sleep(700);
 
-  // Step 4
-  await api.sendMessage(
+  await update(
 `🔄 Restarting bot...
 
 🔋 Status:
 ▰▰▰▰▰ 100%
 
-✅ Please wait, bot will be back online shortly!`,
-    threadID
+✅ Please wait, bot will be back online shortly!`
   );
 
-  // Give time to send message
-  await sleep(1200);
+  await sleep(1500);
 
-  // REAL restart
-  process.exit(1);
+  // 🔐 Graceful restart (Render safe)
+  global.isRestarting = true;
+  process.exit(0);
 };
