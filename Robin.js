@@ -1,11 +1,10 @@
 // =============================================
-// ROBIN x MOYNA BOT – FINAL PRODUCTION BUILD
-// Auto Commands Loader + NoPrefix + Reply System
-// Render / Railway / Fly.io SAFE
+// ROBIN x MOYNA BOT – FINAL SAFE PRODUCTION BUILD
+// Appstate SAFE | Facebook SAFE | Render/VPS SAFE
 // Credit: ROBIN ❤️
 // =============================================
 
-// ===================== KEEP ALIVE SERVER (MUST BE FIRST) =====================
+// ===================== KEEP ALIVE SERVER =====================
 const express = require("express");
 const app = express();
 
@@ -13,27 +12,22 @@ app.get("/", (req, res) => {
   res.status(200).send("💙 Robin x Moyna Bot Alive");
 });
 
-const PORT = process.env.PORT;
-if (!PORT) {
-  console.error("❌ PORT not found. Platform will stop the service.");
-  process.exit(1);
-}
+const PORT = process.env.PORT || 3000;
 
 const server = app.listen(PORT, () => {
   console.log(`🌍 KeepAlive server running on port ${PORT}`);
 });
 
-// Internal heartbeat (Render idle protection)
+// Render / VPS heartbeat
 setInterval(() => {
-  console.log("🫀 Heartbeat: bot process alive");
-}, 1000 * 60 * 4);
+  console.log("🫀 Heartbeat: process alive");
+}, 1000 * 60 * 5);
 
 // ===================== IMPORTS =====================
 const fs = require("fs");
 const path = require("path");
 const login = require("priyanshu-fca");
 
-// Modular helpers
 const {
   log,
   banner,
@@ -80,8 +74,8 @@ log("SYSTEM", "Logging in…");
 login({ appState: require(appStatePath) }, async (err, api) => {
   if (err) {
     log("LOGIN-ERROR", err);
-    // Let platform restart cleanly
-    return setTimeout(() => process.exit(0), 5000);
+    // ❌ exit করবো না, retry allow
+    return;
   }
 
   banner();
@@ -103,33 +97,21 @@ login({ appState: require(appStatePath) }, async (err, api) => {
         threadID,
         (err, info) => {
           if (err) reject(err);
-          else {
-            if (callback) callback(err, info);
-            resolve(info);
-          }
+          else resolve(info);
         },
         messageID
       );
     });
   };
 
-  // ================= APPSTATE AUTO REFRESH =================
-  setInterval(() => {
-    try {
-      const newState = api.getAppState();
-      fs.writeFileSync(appStatePath, JSON.stringify(newState, null, 2));
-      log("SYSTEM", "✅ Appstate refreshed");
-    } catch (e) {
-      log("WARN", "Appstate refresh failed");
-    }
-  }, 1000 * 60 * 30);
-
-  // ================= API OPTIONS =================
+  // ================= API OPTIONS (ANTI-DETECTION) =================
   api.setOptions({
     listenEvents: true,
-    forceLogin: true,
+    forceLogin: false,          // 🔐 VERY IMPORTANT
     selfListen: false,
     logLevel: "silent",
+    autoMarkRead: false,
+    autoMarkDelivery: false,
     userAgent:
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
   });
@@ -155,12 +137,10 @@ login({ appState: require(appStatePath) }, async (err, api) => {
 
     const body = event.body ? event.body.trim() : "";
 
-    // Reply handler
     try {
       await checkReply(api, event, log);
     } catch {}
 
-    // Event types (subscribe, unsend, etc.)
     if (global.client.events && event.logMessageType) {
       for (const evt of global.client.events.values()) {
         if (evt.config?.eventType?.includes(event.logMessageType)) {
@@ -177,7 +157,6 @@ login({ appState: require(appStatePath) }, async (err, api) => {
       }
     }
 
-    // handleEvent (global)
     if (global.client.events) {
       for (const evt of global.client.events.values()) {
         if (typeof evt.handleEvent === "function") {
@@ -194,7 +173,6 @@ login({ appState: require(appStatePath) }, async (err, api) => {
       }
     }
 
-    // No-prefix commands
     for (const cmd of global.client.commands.values()) {
       if (typeof cmd.handleEvent === "function") {
         try {
@@ -210,7 +188,6 @@ login({ appState: require(appStatePath) }, async (err, api) => {
       }
     }
 
-    // Prefix commands
     if (!body.startsWith(PREFIX)) return;
 
     const args = body.slice(PREFIX.length).trim().split(/\s+/);
@@ -240,28 +217,17 @@ login({ appState: require(appStatePath) }, async (err, api) => {
   });
 });
 
-// ===================== GRACEFUL SHUTDOWN (IMPORTANT) =====================
-global.isRestarting = false;
-
-const gracefulExit = (signal) => {
-  if (global.isRestarting) return;
-  console.log(`🛑 Graceful shutdown (${signal})`);
-
-  server.close(() => {
-    setTimeout(() => {
-      process.exit(0); // clean exit (no failure detect)
-    }, 1000);
-  });
-};
-
-process.on("SIGTERM", gracefulExit);
-process.on("SIGINT", gracefulExit);
-
-// ===================== SAFETY NET =====================
-process.on("unhandledRejection", (reason) => {
-  console.error("UnhandledPromiseRejection:", reason);
+// ===================== GRACEFUL SHUTDOWN =====================
+process.on("SIGTERM", () => {
+  console.log("SIGTERM received");
+  setTimeout(() => process.exit(0), 2000);
 });
 
-process.on("uncaughtException", (err) => {
-  console.error("UncaughtException:", err);
+process.on("SIGINT", () => {
+  console.log("SIGINT received");
+  setTimeout(() => process.exit(0), 2000);
 });
+
+// ===================== SAFETY =====================
+process.on("unhandledRejection", () => {});
+process.on("uncaughtException", () => {});
