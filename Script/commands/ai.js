@@ -1,147 +1,184 @@
 // ====================================================
-// Moyna AI Chat Command ❤️ (STABLE UPGRADE)
-// Version: 3.5.0
-// Base: Robin original working AI
+// Moyna AI Chat Command ❤️ (Group + Multi Memory Support)
+// Version: 3.0.0
 // ====================================================
 
 const fs = require("fs");
 const axios = require("axios");
 require("dotenv").config();
 
-// ================= BASIC CHECK =================
-function validateApiKey() {
-  const key = process.env.OPENAI_API_KEY;
-  if (!key || !key.startsWith("sk-")) return false;
-  return true;
-}
-
-// ================= MEMORY =================
+// Folder for user memories
 const MEMORY_DIR = "./memory";
 if (!fs.existsSync(MEMORY_DIR)) fs.mkdirSync(MEMORY_DIR);
 
-function loadMemory(uid) {
-  const p = `${MEMORY_DIR}/${uid}.json`;
-  if (!fs.existsSync(p)) return [];
-  try {
-    return JSON.parse(fs.readFileSync(p, "utf8"));
-  } catch {
-    return [];
-  }
+// Relationship setup ❤️
+const ROBIN_ID = "100091520325159"; // 👉 তোমার UID বসাও
+const RELATION_PROMPT =   তুমি ময়না — রবিনের গার্লফ্রেন্ড 💞     তুমি রোমান্টিক, ভালোবাসাপূর্ণ, কোমলভাবে বাংলা ভাষায় কথা বলবে।     রবিনকে তুমি খুব ভালোবাসো ❤️    ;
+
+// Validate API key
+function validateApiKey() {
+const apiKey = process.env.OPENAI_API_KEY;
+if (!apiKey || apiKey.startsWith("sk-your")) {
+console.error("❌ Missing OpenAI API Key");
+return false;
+}
+return true;
 }
 
-function saveMemory(uid, mem) {
-  const p = `${MEMORY_DIR}/${uid}.json`;
-  fs.writeFileSync(p, JSON.stringify(mem.slice(-20), null, 2));
+// Load memory for user
+function loadUserMemory(userId) {
+const filePath = ${MEMORY_DIR}/${userId}.json;
+if (fs.existsSync(filePath)) {
+try {
+return JSON.parse(fs.readFileSync(filePath, "utf8"));
+} catch {
+return [];
+}
+}
+return [];
 }
 
-// ================= RELATION =================
-const OWNER_ID = process.env.ROBIN_ID;
-
-function systemPrompt(uid) {
-  if (uid === OWNER_ID) {
-    return `তুমি ময়না — রবিনের গার্লফ্রেন্ড 💞
-তুমি যত্নশীল, রোমান্টিক ও স্বাভাবিকভাবে বাংলা কথা বলবে।`;
-  }
-  return `তুমি ময়না, একজন ভদ্র ও সহানুভূতিশীল AI সহকারী।
-তুমি মানুষের মতো স্বাভাবিকভাবে কথা বলবে।`;
+// Save memory for user
+function saveUserMemory(userId, data) {
+const filePath = ${MEMORY_DIR}/${userId}.json;
+fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
 
-// ================= EMOTION + REACTION =================
-function detectEmotion(t) {
-  if (/❤️|ভালোবাসি|miss|প্রিয়|😘/.test(t)) return "❤️";
-  if (/😂|হাহা|lol/.test(t)) return "😂";
-  if (/কষ্ট|মন খারাপ|😢/.test(t)) return "😢";
-  if (/রাগ|বিরক্ত|😡/.test(t)) return "😡";
-  return "👀";
+// ================= Chat Function =================
+async function chatWithAI(userId, prompt, retryCount = 0) {
+try {
+if (!validateApiKey()) {
+return "🔑 API Key সেটআপ করুন .env ফাইলে।";
 }
 
-// ================= AI CORE =================
-async function chatWithAI(uid, text) {
-  if (!validateApiKey())
-    return "🔑 OpenAI API Key ঠিকভাবে সেট করা নেই।";
+let memory = loadUserMemory(userId);  
+memory.push({ role: "user", content: prompt });  
 
-  try {
-    let memory = loadMemory(uid);
-    memory.push({ role: "user", content: text });
+// Determine system prompt  
+let systemPrompt = `
 
-    const res = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
-      {
-        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-        messages: [
-          { role: "system", content: systemPrompt(uid) },
-          ...memory.slice(-12)
-        ],
-        max_tokens: 600,
-        temperature: 0.8
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-          "Content-Type": "application/json"
-        }
-      }
-    );
-
-    const reply = res.data.choices?.[0]?.message?.content;
-    if (!reply) return "⚠️ AI থেকে উত্তর পাওয়া যায়নি। আবার চেষ্টা করো।";
-
-    memory.push({ role: "assistant", content: reply });
-    saveMemory(uid, memory);
-
-    return reply;
-  } catch (err) {
-    console.error("AI ERROR:", err.response?.data || err.message);
-    return "❌ এখন AI তে সমস্যা হচ্ছে। একটু পরে আবার বলো।";
-  }
+তুমি ময়না, এক বন্ধুসুলভ AI সহকারী।
+তুমি সবাইকে বাংলা ভাষায় সহানুভূতিশীলভাবে উত্তর দেবে।
+`;
+if (userId === ROBIN_ID) {
+systemPrompt = RELATION_PROMPT;
 }
 
-// ================= COMMAND CONFIG =================
+const response = await axios.post(  
+  "https://api.openai.com/v1/chat/completions",  
+  {  
+    model: process.env.OPENAI_MODEL || "gpt-4o-mini",  
+    messages: [  
+      { role: "system", content: systemPrompt },  
+      ...memory.slice(-12),  
+    ],  
+    max_tokens: 600,  
+    temperature: 0.85,  
+  },  
+  {  
+    headers: {  
+      "Content-Type": "application/json",  
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,  
+    },  
+  }  
+);  
+
+const reply = response.data.choices[0].message.content;  
+memory.push({ role: "assistant", content: reply });  
+saveUserMemory(userId, memory);  
+
+return reply;
+
+} catch (err) {
+console.error("AI Error:", err.response?.data || err.message);
+
+if (err.response?.status === 429) {  
+  if (retryCount < 2) {  
+    await new Promise((r) => setTimeout(r, 4000));  
+    return chatWithAI(userId, prompt, retryCount + 1);  
+  }  
+  return "⏰ Rate limit exceeded! পরে চেষ্টা করো।";  
+}  
+return "😔 আমি এখন একটু ব্যস্ত আছি, পরে বলো প্রিয়।";
+
+}
+}
+
+// ================= Command Config =================
 module.exports.config = {
-  name: "ai",
-  version: "3.5.0",
-  credits: "Robin ❤️ Moyna",
-  description: "Stable AI Chat (Upgraded)",
-  commandCategory: "chat",
-  cooldowns: 1
+name: "ai",
+version: "3.0.0",
+credits: "Robin-Bot",
+description: "Chat with Moyna (Group-safe + Multi-memory)",
+commandCategory: "chat",
+cooldowns: 1,
 };
 
-// ================= RUN =================
+// ================= Run Command =================
 module.exports.run = async function ({ api, event, args }) {
-  const msg = args.join(" ");
+const message = args.join(" ");
+if (!message)
+return api.sendMessage(
+"বলোনা কিছু 🩷 আমি শুনছি...",
+event.threadID,
+event.messageID
+);
 
-  if (!msg) {
-    return api.sendMessage(
-      "বলোনা কিছু 🩷 আমি শুনছি...",
-      event.threadID,
-      (err, info) => {
-        if (!err) {
-          global.client.handleReply.set(info.messageID, {
-            name: "ai",
-            author: event.senderID
-          });
-        }
-      }
-    );
-  }
+const userId = event.senderID;
+if (!global.lastRequest) global.lastRequest = {};
+const now = Date.now();
+const cooldown = (process.env.AI_COOLDOWN || 10) * 1000;
 
-  api.setMessageReaction(detectEmotion(msg), event.messageID, () => {}, true);
+if (
+global.lastRequest[userId] &&
+now - global.lastRequest[userId] < cooldown
+) {
+const waitTime = Math.ceil(
+(cooldown - (now - global.lastRequest[userId])) / 1000
+);
+return api.sendMessage(
+⏳ ${waitTime} সেকেন্ড অপেক্ষা করো...,
+event.threadID,
+event.messageID
+);
+}
 
-  const reply = await chatWithAI(event.senderID, msg);
-  api.sendMessage(reply, event.threadID, event.messageID);
+global.lastRequest[userId] = now;
+const reply = await chatWithAI(userId, message);
+api.sendMessage(
+reply,
+event.threadID,
+(err, info) => {
+if (!err && info && info.messageID) {
+global.client.handleReply.set(info.messageID, {
+name: module.exports.config.name,
+author: event.senderID,
+messageID: info.messageID,
+});
+}
+},
+event.messageID
+);
 };
 
-// ================= HANDLE REPLY =================
+// ================= Handle Reply =================
 module.exports.handleReply = async function ({ api, event, handleReply }) {
-  if (event.senderID !== handleReply.author) return;
-
-  api.setMessageReaction(
-    detectEmotion(event.body),
-    event.messageID,
-    () => {},
-    true
-  );
-
-  const reply = await chatWithAI(event.senderID, event.body);
-  api.sendMessage(reply, event.threadID, event.messageID);
+if (event.senderID !== handleReply.author) return;
+const reply = await chatWithAI(event.senderID, event.body);
+api.sendMessage(
+reply,
+event.threadID,
+(err, info) => {
+if (!err && info && info.messageID) {
+global.client.handleReply.set(info.messageID, {
+name: module.exports.config.name,
+author: event.senderID,
+messageID: info.messageID,
+});
+}
+},
+event.messageID
+);
 };
+
+Eita age dekho
