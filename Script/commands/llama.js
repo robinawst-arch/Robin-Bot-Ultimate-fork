@@ -1,0 +1,156 @@
+// ====================================================
+// Moyna LLaMA AI Chat Command ❤️
+// LLaMA 4 / Groq API
+// ====================================================
+
+const fs = require("fs");
+const axios = require("axios");
+require("dotenv").config();
+
+const MEMORY_DIR = "./memory";
+if (!fs.existsSync(MEMORY_DIR)) fs.mkdirSync(MEMORY_DIR);
+
+const ROBIN_ID = "100091520325159";
+
+const RELATION_PROMPT = `
+তুমি ময়না — রবিনের গার্লফ্রেন্ড 💞
+তুমি রোমান্টিক, আবেগী ও কোমল ভাষায় বাংলায় কথা বলবে।
+রবিনকে তুমি গভীরভাবে ভালোবাসো ❤️
+`;
+
+const MAX_MEMORY = 30;
+
+// ---------------- Utility ----------------
+function loadUserMemory(uid) {
+  const file = `${MEMORY_DIR}/${uid}.json`;
+  if (!fs.existsSync(file)) return [];
+  try {
+    return JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch {
+    return [];
+  }
+}
+
+function saveUserMemory(uid, memory) {
+  if (memory.length > MAX_MEMORY) {
+    memory = memory.slice(-MAX_MEMORY);
+  }
+  fs.writeFileSync(
+    `${MEMORY_DIR}/${uid}.json`,
+    JSON.stringify(memory, null, 2)
+  );
+}
+
+function validateKey() {
+  return !!process.env.LLAMA_API_KEY;
+}
+
+// ---------------- LLaMA Chat ----------------
+async function chatWithLLaMA(userId, prompt, retry = 0) {
+  try {
+    if (!validateKey()) {
+      return "🔑 LLaMA API key সেট করা নেই (.env)";
+    }
+
+    let memory = loadUserMemory(userId);
+    memory.push({ role: "user", content: prompt });
+
+    let systemPrompt = `
+তুমি ময়না, এক বন্ধুসুলভ AI সহকারী।
+সবাইকে বাংলায় ভদ্রভাবে উত্তর দাও।
+`;
+
+    if (userId === ROBIN_ID) {
+      systemPrompt = RELATION_PROMPT;
+    }
+
+    const response = await axios.post(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        model: process.env.LLAMA_MODEL || "llama-4-70b",
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...memory.slice(-12)
+        ],
+        temperature: 0.85,
+        max_tokens: 600
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.LLAMA_API_KEY}`
+        }
+      }
+    );
+
+    const reply = response.data.choices[0].message.content;
+    memory.push({ role: "assistant", content: reply });
+    saveUserMemory(userId, memory);
+
+    return reply;
+  } catch (err) {
+    console.error("LLaMA Error:", err.response?.data || err.message);
+
+    if (err.response?.status === 429 && retry < 2) {
+      await new Promise(r => setTimeout(r, 4000));
+      return chatWithLLaMA(userId, prompt, retry + 1);
+    }
+
+    return "😔 Moyna এখন একটু ক্লান্ত… পরে বলো প্রিয়।";
+  }
+}
+
+// ---------------- Command Config ----------------
+module.exports.config = {
+  name: "llama",
+  version: "1.0.0",
+  credits: "Robin ❤️ Moyna",
+  description: "Chat with Moyna (LLaMA 4 AI)",
+  commandCategory: "chat",
+  cooldowns: 1
+};
+
+// ---------------- Run ----------------
+module.exports.run = async function ({ api, event, args }) {
+  const text = args.join(" ");
+  if (!text) {
+    return api.sendMessage(
+      "বলোনা কিছু 🩷 ময়না শুনছে…",
+      event.threadID,
+      event.messageID
+    );
+  }
+
+  const userId = event.senderID;
+  if (!global.lastLlama) global.lastLlama = {};
+
+  const cooldown = (process.env.AI_COOLDOWN || 10) * 1000;
+  const now = Date.now();
+
+  if (
+    global.lastLlama[userId] &&
+    now - global.lastLlama[userId] < cooldown
+  ) {
+    const wait = Math.ceil(
+      (cooldown - (now - global.lastLlama[userId])) / 1000
+    );
+    return api.sendMessage(
+      `⏳ ${wait}s অপেক্ষা করো প্রিয়…`,
+      event.threadID,
+      event.messageID
+    );
+  }
+
+  global.lastLlama[userId] = now;
+  api.sendTypingIndicator(event.threadID);
+
+  const reply = await chatWithLLaMA(userId, text);
+  api.sendMessage(reply, event.threadID, event.messageID);
+};
+
+// ---------------- Handle Reply ----------------
+module.exports.handleReply = async function ({ api, event, handleReply }) {
+  if (event.senderID !== handleReply.author) return;
+  const reply = await chatWithLLaMA(event.senderID, event.body);
+  api.sendMessage(reply, event.threadID, event.messageID);
+};
