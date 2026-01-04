@@ -1,9 +1,5 @@
 // ===================================================
-// Voice Switch Command 🎤
-// /voice girl hello
-// /voice boy hi
-// /voice cute কেমন আছো
-// /voice deep system online
+// Voice Switch Command 🎤 (FIXED bn ERROR)
 // ===================================================
 
 const fs = require("fs");
@@ -12,7 +8,7 @@ const gTTS = require("gtts");
 
 module.exports.config = {
   name: "voice",
-  version: "3.0.0",
+  version: "3.1.0",
   credits: "Robin ❤️ Moyna",
   description: "Text to Voice with Voice Switch (Messenger)",
   commandCategory: "media",
@@ -35,27 +31,26 @@ module.exports.run = async function ({ api, event, args }) {
   const voiceType = args[0].toLowerCase();
   const text = args.slice(1).join(" ");
 
+  // ⚠️ IMPORTANT FIX:
+  // Node gtts does NOT support 'bn'
+  // So we force 'en' for all
   let lang = "en";
   let slow = false;
 
   switch (voiceType) {
     case "girl":
-      lang = "bn";
       slow = false;
       break;
 
     case "boy":
-      lang = "en";
       slow = false;
       break;
 
     case "cute":
-      lang = "bn";
       slow = true;
       break;
 
     case "deep":
-      lang = "en";
       slow = true;
       break;
 
