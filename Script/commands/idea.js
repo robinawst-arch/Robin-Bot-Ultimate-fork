@@ -3,7 +3,7 @@
 module.exports.config = {
   name: "idea",
   version: "2.0.0",
-  hasPermssion: 2,
+  hasPermssion: 0,
   credits: "Robin-Bot (patched by Moyna)",
   description:
     "বন্ধুকে ধারাবাহিকভাবে উপদেশ/আইডিয়া পাঠায়। (Robust mention support)",
@@ -16,14 +16,41 @@ module.exports.config = {
   },
 };
 
+const mentionResolver = require("../../includes/mentionResolver");
+
 module.exports.run = async function ({ api, args, Users, event }) {
   try {
     const threadID = event.threadID;
     const body = typeof event.body === "string" ? event.body : "";
 
-    // 1) Robustly get mention UID + name
-    const mentionInfo = await getTargetMention(api, event, body);
+    // 1) Robustly get mention UID + name (shared resolver)
+    const mentionInfo = await mentionResolver.getTargetMention(api, event, body);
+
     if (!mentionInfo || !mentionInfo.id) {
+      // If the user already typed some @name, help them resolve
+      const atName = mentionResolver.extractAtName(body);
+      if (atName) {
+        // fetch thread participants for guidance
+        try {
+          const tinfo = await api.getThreadInfo(threadID);
+          const ids = tinfo.participantIDs || [];
+          const info = await api.getUserInfo(ids);
+          let list = "";
+          ids.forEach((uid) => {
+            const nm = info?.[uid]?.name || "<hidden>";
+            list += `• ${nm} → ${uid}\n`;
+          });
+          return api.sendMessage(
+            `❌ Can't resolve '@${atName}'.\n` +
+              "Name might be hidden by privacy.\n" +
+              "You can either reply to the person's message, mention them in chat so the bot sees it, or use their UID directly.\n" +
+              "Here are thread participants you can try:\n" +
+              list,
+            threadID,
+          );
+        } catch {} // fall through
+      }
+
       return api.sendMessage(
         "আপনি কাকে জ্ঞান দিতে চান এমন 1 জনকে অবশ্যই @ম্যানশন করতে হবে 🙂\n\nউদাহরণ:\n/idea @Robin Ali",
         threadID
@@ -34,7 +61,6 @@ module.exports.run = async function ({ api, args, Users, event }) {
     const name = mentionInfo.name || "User";
 
     const arraytag = [{ id: mention, tag: name }];
-
     const send = (payload) => api.sendMessage(payload, threadID);
 
     // Intro (instant)
@@ -79,80 +105,6 @@ module.exports.run = async function ({ api, args, Users, event }) {
       );
     } catch {}
   }
-};
-
-// ------------------------ HELPERS ------------------------
-
-async function getTargetMention(api, event, body) {
-  // A) Classic: event.mentions = { uid: "Name" }
-  if (event?.mentions && typeof event.mentions === "object") {
-    const ids = Object.keys(event.mentions);
-    if (ids.length) {
-      const id = ids[0];
-      const name = event.mentions[id];
-      return { id, name };
-    }
-  }
-
-  // B) Some forks: event.logMessageData.mentions
-  const lmd = event?.logMessageData;
-  if (lmd?.mentions && typeof lmd.mentions === "object") {
-    const ids = Object.keys(lmd.mentions);
-    if (ids.length) {
-      const id = ids[0];
-      const name = lmd.mentions[id];
-      return { id, name };
-    }
-  }
-
-  // C) Fallback: parse "@Name" from text and resolve in current thread
-  const atName = extractAtName(body);
-  if (!atName) return null;
-
-  const resolved = await resolveUserByNameFromThread(api, event.threadID, atName);
-  if (resolved?.id) return resolved;
-
-  return null;
 }
 
-function extractAtName(body) {
-  if (!body || typeof body !== "string") return null;
-  const idx = body.indexOf("@");
-  if (idx === -1) return null;
 
-  // Get substring after @
-  const sub = body.slice(idx + 1).trim();
-  if (!sub) return null;
-
-  // Stop at double-space / newline / end
-  const m = sub.match(/(.+?)(\s{2,}|\n|$)/);
-  const name = (m?.[1] || "").trim();
-  return name.length ? name : null;
-}
-
-async function resolveUserByNameFromThread(api, threadID, nameQuery) {
-  try {
-    const tinfo = await api.getThreadInfo(threadID);
-    const ids = tinfo?.participantIDs || [];
-    if (!ids.length) return null;
-
-    const info = await api.getUserInfo(ids);
-    const q = String(nameQuery).toLowerCase();
-
-    // exact match first
-    for (const uid of ids) {
-      const nm = info?.[uid]?.name;
-      if (nm && nm.toLowerCase() === q) return { id: uid, name: nm };
-    }
-
-    // contains match
-    for (const uid of ids) {
-      const nm = info?.[uid]?.name;
-      if (nm && nm.toLowerCase().includes(q)) return { id: uid, name: nm };
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
-}

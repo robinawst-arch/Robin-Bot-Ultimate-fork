@@ -9,6 +9,8 @@ module.exports.config = {
   cooldowns: 3,
 };
 
+const { getMentionIdsRobust } = require("../../includes/mentionResolver");
+
 module.exports.run = async function ({ api, event, args, Users, permssion }) {
   const fs = require("fs-extra");
   const { ADMINBOT } = global.config;
@@ -75,7 +77,9 @@ ${banner}
 
     let ids = [];
 
-    if (Object.keys(mentions).length) ids = Object.keys(mentions);
+    // ✅ Robust mention support
+    const robustIds = await getMentionIdsRobust(api, event);
+    if (robustIds.length) ids = robustIds;
     else if (!isNaN(target)) ids.push(target);
     else return api.sendMessage("❌ Invalid input!", threadID, messageID);
 
@@ -109,7 +113,9 @@ ${banner}
 
     let ids = [];
 
-    if (Object.keys(mentions).length) ids = Object.keys(mentions);
+    // ✅ Robust mention support
+    const robustIds = await getMentionIdsRobust(api, event);
+    if (robustIds.length) ids = robustIds;
     else if (!isNaN(target)) ids.push(target);
     else return api.sendMessage("❌ Invalid input!", threadID, messageID);
 
@@ -135,3 +141,4 @@ ${banner}
 
   return;
 };
+

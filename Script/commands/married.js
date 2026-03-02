@@ -15,6 +15,8 @@ module.exports.config = {
   },
 };
 
+const { getMentionIdsRobust } = require("../../includes/mentionResolver");
+
 module.exports.onLoad = async () => {
   const { resolve } = global.nodemodule["path"];
   const { existsSync, mkdirSync } = global.nodemodule["fs-extra"];
@@ -79,7 +81,9 @@ async function circle(image) {
 module.exports.run = async function ({ event, api, args }) {
   const fs = global.nodemodule["fs-extra"];
   const { threadID, messageID, senderID } = event;
-  const mention = Object.keys(event.mentions);
+  
+  // ✅ Robust mention support (event.mentions/logMessageData/@name fallback)
+  const mention = await getMentionIdsRobust(api, event);
   if (!mention[0])
     return api.sendMessage("Please mention 1 person.", threadID, messageID);
   else {
@@ -95,3 +99,4 @@ module.exports.run = async function ({ event, api, args }) {
     );
   }
 };
+

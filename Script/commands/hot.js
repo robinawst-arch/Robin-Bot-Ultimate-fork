@@ -10,9 +10,9 @@ module.exports.config = {
 };
 
 module.exports.run = async function ({ api, event }) {
-  const axios = global.getModule("axios");
-  const fs = global.getModule("fs-extra");
-  const path = global.getModule("path");
+  const axios = require("axios");
+  const fs = require("fs-extra");
+  const path = require("path");
 
   // 🔥 ALL GOOGLE DRIVE LINKS (export=download for Render)
   const videoLinks = [
@@ -61,38 +61,73 @@ module.exports.run = async function ({ api, event }) {
   try {
     api.sendMessage("🔥 Hot video load hocche…", event.threadID);
 
-    const res = await axios({
-      url: link,
-      method: "GET",
-      responseType: "stream",
-      headers: { "User-Agent": "Mozilla/5.0" },
-      timeout: 30000
-    });
+    // Enhanced headers to bypass Google Drive blocks
+    const headers = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Accept": "*/*",
+      "Accept-Encoding": "gzip, deflate",
+      "Cache-Control": "no-cache",
+      "Pragma": "no-cache",
+      "Referer": "https://drive.google.com/"
+    };
 
-    const writer = fs.createWriteStream(filePath);
-    res.data.pipe(writer);
+    let downloaded = false;
+    let retries = 0;
+    const maxRetries = 2;
 
-    writer.on("finish", () => {
-      api.sendMessage(
-        {
-          body: "পাপির দল 😤 হাত মারবি না কিন্তু 🥵🫵",
-          attachment: fs.createReadStream(filePath)
-        },
-        event.threadID,
-        () => {
-          try { fs.unlinkSync(filePath); } catch {}
+    while (!downloaded && retries < maxRetries) {
+      try {
+        const res = await axios({
+          url: link,
+          method: "GET",
+          responseType: "stream",
+          headers,
+          timeout: 45000,
+          maxRedirects: 5
+        });
+
+        const writer = fs.createWriteStream(filePath);
+        res.data.pipe(writer);
+
+        await new Promise((resolve, reject) => {
+          writer.on("finish", resolve);
+          writer.on("error", reject);
+          res.data.on("error", reject);
+        });
+
+        // Verify file was written
+        if (fs.existsSync(filePath) && fs.statSync(filePath).size > 0) {
+          api.sendMessage(
+            {
+              body: "পাপির দল 😤 হাত মারবি না কিন্তু 🥵🫵",
+              attachment: fs.createReadStream(filePath)
+            },
+            event.threadID,
+            () => {
+              try { fs.unlinkSync(filePath); } catch {}
+            }
+          );
+          downloaded = true;
+        } else {
+          throw new Error("File size is 0 or missing after download");
         }
-      );
-    });
+      } catch (err) {
+        retries++;
+        console.warn(`HOT CMD RETRY ${retries}/${maxRetries}:`, err.message);
+        if (retries >= maxRetries) throw err;
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
 
-    writer.on("error", () => {
-      api.sendMessage("❌ Video save failed.", event.threadID);
-    });
+    if (!downloaded) {
+      throw new Error("Download failed after all retries");
+    }
 
   } catch (err) {
     console.error("HOT CMD ERROR:", err.message);
+    try { fs.unlinkSync(filePath); } catch {}
     api.sendMessage(
-      "❌ Hot video load hocche na (Google Drive block / timeout).",
+      "❌ Hot video load hocche na.\nGoogle Drive শেয়ার লিংক সমস্যা হতে পারে।\nAdmin কে জানান।",
       event.threadID
     );
   }
