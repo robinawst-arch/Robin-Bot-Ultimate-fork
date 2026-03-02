@@ -39,7 +39,7 @@
     "node-fetch": "^2.6.9",
     "node-schedule": "^2.1.1",
     "openai": "^4.47.2",
-    "priyanshu-fca": "2.9.8",
+    "priyanshu-fca": "3.0.0",
     "sequelize": "^6.35.1",
     "sharp": "^0.33.3",
     "uuid-apikey": "^1.5.3",
