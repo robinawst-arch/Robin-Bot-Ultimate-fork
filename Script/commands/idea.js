@@ -1,287 +1,158 @@
+"use strict";
+
 module.exports.config = {
   name: "idea",
-  version: "1.0.0",
+  version: "2.0.0",
   hasPermssion: 2,
-  credits: "Robin-Bot",
+  credits: "Robin-Bot (patched by Moyna)",
   description:
-    "5 বারের জন্য ক্রমাগত বন্ধুর ট্যাগ ট্যাগ করুন\nসেই ব্যক্তিকে আত্মা কলিং বলা যেতে পারে",
-  commandCategory: "nsfw",
-  usages: " please @mention",
+    "বন্ধুকে ধারাবাহিকভাবে উপদেশ/আইডিয়া পাঠায়। (Robust mention support)",
+  commandCategory: "utility",
+  usages: " /idea @mention",
   cooldowns: 10,
   dependencies: {
-    request: "",
     "fs-extra": "",
     axios: "",
   },
 };
 
 module.exports.run = async function ({ api, args, Users, event }) {
-  var mention = Object.keys(event.mentions)[0];
-  if (!mention)
-    return api.sendMessage(
-      "আপনি কাকে জ্ঞান দিতে চান এমন 1 জনকে @ম্যানশন করতে হবে",
-      event.threadID
+  try {
+    const threadID = event.threadID;
+    const body = typeof event.body === "string" ? event.body : "";
+
+    // 1) Robustly get mention UID + name
+    const mentionInfo = await getTargetMention(api, event, body);
+    if (!mentionInfo || !mentionInfo.id) {
+      return api.sendMessage(
+        "আপনি কাকে জ্ঞান দিতে চান এমন 1 জনকে অবশ্যই @ম্যানশন করতে হবে 🙂\n\nউদাহরণ:\n/idea @Md Sohag Ali",
+        threadID
+      );
+    }
+
+    const mention = mentionInfo.id;
+    const name = mentionInfo.name || "User";
+
+    const arraytag = [{ id: mention, tag: name }];
+
+    const send = (payload) => api.sendMessage(payload, threadID);
+
+    // Intro (instant)
+    send(
+      "তোমাকে কিছু উপদেশ দেওয়া হবে। মেনে চললে জীবনে অনেক উন্নতি করতে পারবে।🙂"
     );
-  let name = event.mentions[mention];
-  var arraytag = [];
-  arraytag.push({ id: mention, tag: name });
-  var a = function (a) {
-    api.sendMessage(a, event.threadID);
-  };
-  a(
-    "তোমাকে কিছু উপদেশ দেওয়া হবে। মেনে চললে জীবনে অনেক উন্নতি করতে পারবে এবং মরার পর ও ভালো থাকবে।😇"
-  );
-  setTimeout(() => {
-    a({
-      body:
-        "বিপদ-আপদের সময়,, দুনিয়ার সকল দরজা বন্ধ হয়ে গেলেও আল্লাহ তায়ালার দরজার সবসময় খুলা থাকে। 🥰🥰।" +
-        " " +
-        name,
-      mentions: arraytag,
-    });
-  }, 3000);
-  setTimeout(() => {
-    a({
-      body:
-        "দুনিয়াতে একটি মাত্র ঘর । যার নাম “কাবা ঘর” । যার উপর দিয়ে আজ পর্যন্ত কোন পাখি বা বিমান উড়ে যেতে পারে নি। 😍.." +
-        " " +
-        name,
-      mentions: arraytag,
-    });
-  }, 5000);
-  setTimeout(() => {
-    a({
-      body:
-        "তার জন্য কাঁদ যে তোমার চোখের জল দেখে সেও কেঁদে ফেলে, কিন্তু এমন কারো জন্য কেদোনা যে তোমার চোখের জল দেখে উপহাস করে। 🐰" +
-        " " +
-        name,
-      mentions: arraytag,
-    });
-  }, 7000);
-  setTimeout(() => {
-    a({
-      body:
-        "সবচেয়ে কঠিন কাজ হচ্ছে নিজেকে চেনা এবং সবচেয়ে সহজ কাজ হচ্ছে অন্যদেরকে উপদেশ দেয়া। 💔!" +
-        " " +
-        name,
-      mentions: arraytag,
-    });
-  }, 9000);
-  setTimeout(() => {
-    a({
-      body:
-        "প্রেমে ছ্যাকা খাইছেন তাকে ভুলতে পারছেন না? ৫ ওয়াক্ত সালাত আদায় করুন তার প্রতি যে ভালোবাসা ছিলো সেটা আল্লাহর প্রতি স্থাপন করুন।🥰" +
-        " " +
-        name,
-      mentions: arraytag,
-    });
-  }, 12000);
-  setTimeout(() => {
-    a({
-      body:
-        "ডিপ্রেশনে আছেন কোনোভাবে ডিপ্রেশন কাটাতে পারছেন না। ইসলামিক ভিডিও দেখুন ওয়াজ শুনুন মন টাকে ইসলামিক কথার ভিতর নিয়ে যান তাহলে ডিপ্রেশন কেটে যাবে। " +
-        " " +
-        name,
-      mentions: arraytag,
-    });
-  }, 15000);
-  setTimeout(() => {
-    a({
-      body: "যাহা তুমি দেখাও, তার চেয়ে বেশি তোমার থাকা উচিত🤬" + " " + name,
-      mentions: arraytag,
-    });
-  }, 17000);
-  setTimeout(() => {
-    a({
-      body: "যা তুমি জান, তার তুলনায় কম কথা বলা উচিত।🤟" + " " + name,
-      mentions: arraytag,
-    });
-  }, 20000);
-  setTimeout(() => {
-    a({
-      body:
-        "বন্ধুত্ব হোক কিংবা ভালোবাসা। টিকিয়ে রাখার দায়িত্ব কিন্তু দু'জনেরই।  🤝" +
-        " " +
-        name,
-      mentions: arraytag,
-    });
-  }, 23000);
-  setTimeout(() => {
-    a({
-      body:
-        "যদি স্বপ্ন দেখতে পারো, তবে তা বাস্তবায়নও করতে পারবে।💉।" + " " + name,
-      mentions: arraytag,
-    });
-  }, 25000);
-  setTimeout(() => {
-    a({
-      body:
-        "যে তোমাকে আজ অবহেলা করছে। ধৈর্য ধরো একদিন। তোমাকে তার প্রয়োজন হবেই" +
-        " " +
-        name,
-      mentions: arraytag,
-    });
-  }, 28500);
-  setTimeout(() => {
-    a({
-      body:
-        "তাকে ছেড়ে চলে যেও না।💔 যে তোমার শত খারাপ। ব্যবহারের পরেও তোমাকে ছেড়ে যাইনি।😘 ✋" +
-        " " +
-        name,
-      mentions: arraytag,
-    });
-  }, 31000);
-  setTimeout(() => {
-    a({ body: " আল্লাহর দেখানো পথে চলুন 🥰" + " " + name, mentions: arraytag });
-  }, 36000);
-  setTimeout(() => {
-    a("~ অন্যকে গালি দেওয়া থেকে বিরত থাকুন♥️");
-  }, 39000);
-  setTimeout(() => {
-    a({
-      body: "গার্লফ্রেন্ডকে না✌️ নিজের মা বাবাকে ভালোবাসুন✋🥰।" + " " + name,
-      mentions: arraytag,
-    });
-  }, 42000);
-  setTimeout(() => {
-    a({
-      body:
-        "নিজের ওপর বিশ্বাস রাখার মানেই একজন মানুষ আত্মবিশ্বাসী।সে বিশ্বাস করে নিজের জন্য সঠিক সিদ্ধান্ত নেয়ার ক্ষমতা তার আছে।😍.." +
-        " " +
-        name,
-      mentions: arraytag,
-    });
-  }, 48000);
-  setTimeout(() => {
-    a({
-      body:
-        "মৃত্যু নিশ্চিত কিন্তু সময় টা অনিশ্চিত.. ইয়া আল্লা্হ! যখনি মৃত্যু দিবা ঈমানী হালতে দিও। 😍🐰" +
-        " " +
-        name,
-      mentions: arraytag,
-    });
-  }, 51000);
-  setTimeout(() => {
-    a({
-      body:
-        "টেনশন দূর করতে। - নেশা নয়। পাঁচ ওয়াক্ত নামাজই যথেষ্ট।💔!" + " " + name,
-      mentions: arraytag,
-    });
-  }, 54000);
-  setTimeout(() => {
-    a({
-      body:
-        "তোমার গার্লফ্রেন্ড তোমাকে রেখে বড়লোক ছেলে পেয়ে তোমাকে ছেড়ে চলে গেছে??  তুমি নিজেকে কষ্ট দিচ্ছো?  নেশা করতাছো?? আরে বোকা তুমি নিজেকে এমন ভাবে তৈরি করো যাতে তোমার সেই গার্লফ্রেন্ড তোমাকে দেখে আফসোস করে এবং সে তোমার কাছে ফিরতে আসতে চাই ✌️" +
-        " " +
-        name,
-      mentions: arraytag,
-    });
-  }, 57000);
-  setTimeout(() => {
-    a({
-      body:
-        "১০ টাকার নামাজ শিক্ষার বইয়ে যা আছে, - পৃথিবীর দামী বইয়েও তা নেই😍 " +
-        " " +
-        name,
-      mentions: arraytag,
-    });
-  }, 59400);
-  setTimeout(() => {
-    a({
-      body:
-        "দেহের রোগের ঔষধ ফার্মেসিতে থাকলেও। - মনের রোগের ঔষধ আল কোরআনে আছে। ✋" +
-        " " +
-        name,
-      mentions: arraytag,
-    });
-  }, 63000);
-  setTimeout(() => {
-    a({
-      body:
-        "যে ব্যক্তি ধোঁকাবাজি করে।- আমার সাথে তার কোন সম্পর্ক নেই।🤟" +
-        " " +
-        name,
-      mentions: arraytag,
-    });
-  }, 66000);
-  setTimeout(() => {
-    a({
-      body:
-        "হে আল্লাহ মুসলমান যখন বানিয়েছো - ঈমানের সাথে মৃত্যু দিও। " +
-        " " +
-        name,
-      mentions: arraytag,
-    });
-  }, 69000);
-  setTimeout(() => {
-    a({
-      body:
-        "হারামের টাকায় টেবিল ভর্তি খাবারের চেয়ে, হালাল টাকার সীমিত খাবারের মজাই আলাদা।💉।" +
-        " " +
-        name,
-      mentions: arraytag,
-    });
-  }, 72000);
-  setTimeout(() => {
-    a({
-      body:
-        "দুনিয়াতে সেই সবচেয়ে কৃপন, যে মুসলমান অন্য মুসলমানকে সালাম দিতে কৃপনতা করে।" +
-        " " +
-        name,
-      mentions: arraytag,
-    });
-  }, 75000);
-  setTimeout(() => {
-    a({
-      body:
-        "চরিত্রহীন স্বামীর সঙ্গে রাজপ্রসাদে থাকার চেয়ে,,,, দরিদ্র আদর্শবান স্বামীর সঙ্গে কুঁড়েঘরে থাকা অনেক সুখের। 🙂✋" +
-        " " +
-        name,
-      mentions: arraytag,
-    });
-  }, 81000);
-  setTimeout(() => {
-    a({
-      body:
-        " দামি কাপড় পড়ে কি লাভ হবে ! সালাতের জন্য ডাকলে যদি বলতে হয় পোশাক তো এখন নাপাক ♥️" +
-        " " +
-        name,
-      mentions: arraytag,
-    });
-  }, 87000);
-  setTimeout(() => {
-    a(
-      "~কাউকে অতীতের পাপ নিয়ে খোটা দিও না ! সে হয়তো তওবা করে মহান আল্লাহর কাছে তোমার থেকেও উত্তম হয়ে গেছে !! 💔"
-    );
-  }, 93000);
-  setTimeout(() => {
-    a({
-      body:
-        "যদি তাকে সম্মান করতে না পারো। 💔তবে তাকে কখনো ভালোবাসি কথাটি বলো না।🙂🥰।" +
-        " " +
-        name,
-      mentions: arraytag,
-    });
-  }, 99000);
-  setTimeout(() => {
-    a({
-      body:
-        "সিঙ্গেল প্রেমকে গার্লফ্রেন্ড দিন😍.আপনি মেয়ে হলে আপনিই প্রেম করুন🥰🥰😇.." +
-        " " +
-        name,
-      mentions: arraytag,
-    });
-  }, 105000);
-  setTimeout(() => {
-    a({
-      body:
-        "সফল মানুষেরা কাজ করে যায়।তারা ভুল করে, ভুল শোধরায়, কিন্তু কখনও হাল ছাড়ে না।🐰" +
-        " " +
-        name,
-      mentions: arraytag,
-    });
-  }, 111000);
-  setTimeout(() => {
-    a("~ বড়দেরকে সম্মান করতে শিখুন😍");
-  }, 39000);
+
+    // 2) Messages list (clean)
+    const messages = [
+      "বিপদ-আপদের সময় দুনিয়ার সকল দরজা বন্ধ হয়ে গেলেও আল্লাহ তায়ালার দরজার সবসময় খুলা থাকে। 🥰🥰",
+      "তার জন্য কাঁদ যে তোমার চোখের জল দেখে সেও কেঁদে ফেলে, কিন্তু এমন কারো জন্য কেদোনা যে তোমার চোখের জল দেখে উপহাস করে। 🐰",
+      "সবচেয়ে কঠিন কাজ হচ্ছে নিজেকে চেনা এবং সবচেয়ে সহজ কাজ হচ্ছে অন্যদেরকে উপদেশ দেয়া। 💔!",
+      "টেনশন দূর করতে নেশা নয়—ভালো অভ্যাস/ইবাদত/রুটিন ধরে রাখা কাজে দেয়। 🙂",
+      "যা তুমি জান, তার তুলনায় কম কথা বলা উচিত।🤟",
+      "বন্ধুত্ব হোক কিংবা ভালোবাসা—টিকিয়ে রাখার দায়িত্ব দু'জনেরই। 🤝",
+      "যদি স্বপ্ন দেখতে পারো, তবে তা বাস্তবায়নও করতে পারবে।✨",
+      "যে তোমাকে আজ অবহেলা করছে—ধৈর্য ধরো, একদিন তোমার মূল্য বুঝবে।",
+      "~ অন্যকে গালি দেওয়া থেকে বিরত থাকুন♥️",
+      "আল্লাহর দেখানো পথে চলুন 🥰",
+      "~ বড়দেরকে সম্মান করতে শিখুন😍",
+    ];
+
+    // 3) Schedule sending (stable)
+    // Each message goes every 3 seconds (customize if you want)
+    let delay = 3000;
+
+    for (const text of messages) {
+      setTimeout(() => {
+        send({
+          body: `${text} ${name}`,
+          mentions: arraytag,
+        });
+      }, delay);
+
+      delay += 3000;
+    }
+  } catch (e) {
+    try {
+      api.sendMessage(
+        `⚠️ idea কমান্ডে সমস্যা: ${e?.message || e}`,
+        event.threadID
+      );
+    } catch {}
+  }
 };
+
+// ------------------------ HELPERS ------------------------
+
+async function getTargetMention(api, event, body) {
+  // A) Classic: event.mentions = { uid: "Name" }
+  if (event?.mentions && typeof event.mentions === "object") {
+    const ids = Object.keys(event.mentions);
+    if (ids.length) {
+      const id = ids[0];
+      const name = event.mentions[id];
+      return { id, name };
+    }
+  }
+
+  // B) Some forks: event.logMessageData.mentions
+  const lmd = event?.logMessageData;
+  if (lmd?.mentions && typeof lmd.mentions === "object") {
+    const ids = Object.keys(lmd.mentions);
+    if (ids.length) {
+      const id = ids[0];
+      const name = lmd.mentions[id];
+      return { id, name };
+    }
+  }
+
+  // C) Fallback: parse "@Name" from text and resolve in current thread
+  const atName = extractAtName(body);
+  if (!atName) return null;
+
+  const resolved = await resolveUserByNameFromThread(api, event.threadID, atName);
+  if (resolved?.id) return resolved;
+
+  return null;
+}
+
+function extractAtName(body) {
+  if (!body || typeof body !== "string") return null;
+  const idx = body.indexOf("@");
+  if (idx === -1) return null;
+
+  // Get substring after @
+  const sub = body.slice(idx + 1).trim();
+  if (!sub) return null;
+
+  // Stop at double-space / newline / end
+  const m = sub.match(/(.+?)(\s{2,}|\n|$)/);
+  const name = (m?.[1] || "").trim();
+  return name.length ? name : null;
+}
+
+async function resolveUserByNameFromThread(api, threadID, nameQuery) {
+  try {
+    const tinfo = await api.getThreadInfo(threadID);
+    const ids = tinfo?.participantIDs || [];
+    if (!ids.length) return null;
+
+    const info = await api.getUserInfo(ids);
+    const q = String(nameQuery).toLowerCase();
+
+    // exact match first
+    for (const uid of ids) {
+      const nm = info?.[uid]?.name;
+      if (nm && nm.toLowerCase() === q) return { id: uid, name: nm };
+    }
+
+    // contains match
+    for (const uid of ids) {
+      const nm = info?.[uid]?.name;
+      if (nm && nm.toLowerCase().includes(q)) return { id: uid, name: nm };
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
