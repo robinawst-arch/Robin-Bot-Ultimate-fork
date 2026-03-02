@@ -1,7 +1,6 @@
 // =============================================
 // ROBIN x MOYNA BOT – FINAL SAFE PRODUCTION BUILD
-// Appstate SAFE | Render/VPS SAFE
-// Credit: ROBIN ❤️
+// (Fixed: GLOBAL mention/ID extract so idea/kick/relation/uid works)
 // =============================================
 
 // ===================== KEEP ALIVE SERVER =====================
@@ -13,7 +12,6 @@ app.get("/", (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-
 app.listen(PORT, () => {
   console.log(`🌍 KeepAlive server running on port ${PORT}`);
 });
@@ -57,6 +55,93 @@ initGetText();
 
 const Users = require("./includes/Users.js");
 const Threads = require("./includes/Threads.js");
+
+// ===================== MENTION HELPERS (GLOBAL FIX) =====================
+function normalizeEventBasics(event) {
+  event.body = typeof event.body === "string" ? event.body : "";
+  event.mentions =
+    event.mentions && typeof event.mentions === "object" ? event.mentions : {};
+
+  // Some FCA forks place mentions here
+  const lmd = event.logMessageData;
+  if (!Object.keys(event.mentions).length && lmd?.mentions && typeof lmd.mentions === "object") {
+    event.mentions = lmd.mentions;
+  }
+  if (
+    !Object.keys(event.mentions).length &&
+    lmd?.messageMetadata?.mentions &&
+    typeof lmd.messageMetadata.mentions === "object"
+  ) {
+    event.mentions = lmd.messageMetadata.mentions;
+  }
+}
+
+// Extract rough "@Name" from a string (first one)
+function extractAtName(text) {
+  if (!text) return null;
+  const idx = text.indexOf("@");
+  if (idx === -1) return null;
+
+  const sub = text.slice(idx + 1).trim();
+  if (!sub) return null;
+
+  // Stop at double-space/newline/end to keep multiword names somewhat
+  const m = sub.match(/(.+?)(\s{2,}|\n|$)/);
+  const name = (m?.[1] || "").trim();
+  return name.length ? name : null;
+}
+
+// Try to fill event.mentions when FB payload doesn't include it
+async function forceBuildMentions(api, event) {
+  // Only if mentions empty + body has "@"
+  if (Object.keys(event.mentions).length > 0) return;
+  if (!event.body || !event.body.includes("@")) return;
+
+  const typedName = extractAtName(event.body);
+  if (!typedName) return;
+
+  try {
+    const threadInfo = await api.getThreadInfo(event.threadID);
+    const members = threadInfo?.participantIDs || [];
+    if (!members.length) return;
+
+    const q = typedName.toLowerCase();
+
+    // Try batch userInfo (some forks support array)
+    let info = null;
+    try {
+      info = await api.getUserInfo(members);
+    } catch {
+      info = null;
+    }
+
+    // If batch worked, match without spamming API calls
+    if (info && typeof info === "object") {
+      for (const uid of members) {
+        const nm = info?.[uid]?.name;
+        if (nm && nm.toLowerCase().includes(q)) {
+          event.mentions[uid] = nm;
+          return;
+        }
+      }
+      return;
+    }
+
+    // Fallback: limited per-user calls (avoid huge spam)
+    const limit = Math.min(members.length, 40);
+    for (let i = 0; i < limit; i++) {
+      const uid = members[i];
+      try {
+        const one = await api.getUserInfo(uid);
+        const nm = one?.[uid]?.name;
+        if (nm && nm.toLowerCase().includes(q)) {
+          event.mentions[uid] = nm;
+          return;
+        }
+      } catch {}
+    }
+  } catch {}
+}
 
 // ===================== LOGIN =====================
 log("SYSTEM", "Logging in…");
@@ -119,20 +204,9 @@ login({ appState: require(appStatePath) }, async (err, api) => {
   api.listenMqtt(async (err2, event) => {
     if (err2 || !event) return;
 
-    // ✅ ===== GLOBAL MENTION FIX (ONE FIX FOR ALL COMMANDS) =====
-    event.body = typeof event.body === "string" ? event.body : "";
-    event.mentions =
-      event.mentions && typeof event.mentions === "object" ? event.mentions : {};
-
-    // Some FCA forks move mentions here:
-    if (!Object.keys(event.mentions).length && event.logMessageData?.mentions) {
-      event.mentions = event.logMessageData.mentions;
-    }
-
-    // Optional: normalize messageReply safe
-    if (!event.messageReply || typeof event.messageReply !== "object") {
-      event.messageReply = null;
-    }
+    // ✅ GLOBAL FIX: make event.body + event.mentions always safe + try to rebuild mentions
+    normalizeEventBasics(event);
+    await forceBuildMentions(api, event);
 
     const body = event.body.trim();
 
@@ -216,7 +290,7 @@ login({ appState: require(appStatePath) }, async (err, api) => {
         permssion: cmd.config?.hasPermssion || 0,
       });
     } catch (e) {
-      log("CMD-ERROR", e.message);
+      log("CMD-ERROR", e?.message || e);
     }
   });
 });
