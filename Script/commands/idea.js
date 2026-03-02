@@ -25,7 +25,7 @@ module.exports.run = async function ({ api, args, Users, event }) {
     const mentionInfo = await getTargetMention(api, event, body);
     if (!mentionInfo || !mentionInfo.id) {
       return api.sendMessage(
-        "আপনি কাকে জ্ঞান দিতে চান এমন 1 জনকে অবশ্যই @ম্যানশন করতে হবে 🙂\n\nউদাহরণ:\n/idea @Md Sohag Ali",
+        "আপনি কাকে জ্ঞান দিতে চান এমন 1 জনকে অবশ্যই @ম্যানশন করতে হবে 🙂\n\nউদাহরণ:\n/idea @Robin Ali",
         threadID
       );
     }
