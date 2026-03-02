@@ -1,6 +1,6 @@
 // =============================================
 // ROBIN x MOYNA BOT – FINAL SAFE PRODUCTION BUILD
-// Appstate SAFE | Facebook SAFE | Render/VPS SAFE
+// Appstate SAFE | Render/VPS SAFE
 // Credit: ROBIN ❤️
 // =============================================
 
@@ -14,7 +14,7 @@ app.get("/", (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 
-const server = app.listen(PORT, () => {
+app.listen(PORT, () => {
   console.log(`🌍 KeepAlive server running on port ${PORT}`);
 });
 
@@ -28,13 +28,7 @@ const fs = require("fs");
 const path = require("path");
 const login = require("priyanshu-fca");
 
-const {
-  log,
-  banner,
-  loadLanguage,
-  initGetText
-} = require("./utils/helpers");
-
+const { log, banner, loadLanguage, initGetText } = require("./utils/helpers");
 const setupGlobals = require("./includes/globalSetup");
 const loadCommands = require("./includes/commandLoader");
 const { checkReply } = require("./includes/eventHandler");
@@ -51,11 +45,7 @@ const PREFIX = config.PREFIX || "/";
 const BOTNAME = config.BOTNAME || "Moyna";
 
 // ===================== LOAD APPSTATE =====================
-const appStatePath = path.join(
-  __dirname,
-  config.APPSTATEPATH || "appstate.json"
-);
-
+const appStatePath = path.join(__dirname, config.APPSTATEPATH || "appstate.json");
 if (!fs.existsSync(appStatePath)) {
   console.error("❌ appstate.json missing");
   process.exit(1);
@@ -74,7 +64,6 @@ log("SYSTEM", "Logging in…");
 login({ appState: require(appStatePath) }, async (err, api) => {
   if (err) {
     log("LOGIN-ERROR", err);
-    // ❌ exit করবো না, retry allow
     return;
   }
 
@@ -85,18 +74,13 @@ login({ appState: require(appStatePath) }, async (err, api) => {
   Threads.setAPI(api);
 
   // ================= SEND MESSAGE WRAPPER =================
-  global.sendMessageWithTyping = async function (
-    message,
-    threadID,
-    callback,
-    messageID
-  ) {
+  global.sendMessageWithTyping = async function (message, threadID, callback, messageID) {
     return new Promise((resolve, reject) => {
       api.sendMessage(
         message,
         threadID,
-        (err, info) => {
-          if (err) reject(err);
+        (err2, info) => {
+          if (err2) reject(err2);
           else resolve(info);
         },
         messageID
@@ -104,10 +88,10 @@ login({ appState: require(appStatePath) }, async (err, api) => {
     });
   };
 
-  // ================= API OPTIONS (ANTI-DETECTION) =================
+  // ================= API OPTIONS =================
   api.setOptions({
     listenEvents: true,
-    forceLogin: false,          // 🔐 VERY IMPORTANT
+    forceLogin: false,
     selfListen: false,
     logLevel: "silent",
     autoMarkRead: false,
@@ -122,7 +106,7 @@ login({ appState: require(appStatePath) }, async (err, api) => {
 
   try {
     const threads = await api.getThreadList(100, null, ["INBOX"]);
-    global.data.allThreadID = threads.map(t => t.threadID);
+    global.data.allThreadID = threads.map((t) => t.threadID);
     log("SYSTEM", `Loaded ${global.data.allThreadID.length} threads`);
   } catch {
     log("WARN", "Thread list load failed");
@@ -132,15 +116,32 @@ login({ appState: require(appStatePath) }, async (err, api) => {
   log("MOYNA", "Bot online 💙");
 
   // ===================== LISTENER =====================
-  api.listenMqtt(async (err, event) => {
-    if (err || !event) return;
+  api.listenMqtt(async (err2, event) => {
+    if (err2 || !event) return;
 
-    const body = event.body ? event.body.trim() : "";
+    // ✅ ===== GLOBAL MENTION FIX (ONE FIX FOR ALL COMMANDS) =====
+    event.body = typeof event.body === "string" ? event.body : "";
+    event.mentions =
+      event.mentions && typeof event.mentions === "object" ? event.mentions : {};
 
+    // Some FCA forks move mentions here:
+    if (!Object.keys(event.mentions).length && event.logMessageData?.mentions) {
+      event.mentions = event.logMessageData.mentions;
+    }
+
+    // Optional: normalize messageReply safe
+    if (!event.messageReply || typeof event.messageReply !== "object") {
+      event.messageReply = null;
+    }
+
+    const body = event.body.trim();
+
+    // ---------- HANDLE REPLY ----------
     try {
       await checkReply(api, event, log);
     } catch {}
 
+    // ---------- RUN EVENTS BY logMessageType ----------
     if (global.client.events && event.logMessageType) {
       for (const evt of global.client.events.values()) {
         if (evt.config?.eventType?.includes(event.logMessageType)) {
@@ -157,6 +158,7 @@ login({ appState: require(appStatePath) }, async (err, api) => {
       }
     }
 
+    // ---------- RUN EVENTS handleEvent ----------
     if (global.client.events) {
       for (const evt of global.client.events.values()) {
         if (typeof evt.handleEvent === "function") {
@@ -173,6 +175,7 @@ login({ appState: require(appStatePath) }, async (err, api) => {
       }
     }
 
+    // ---------- NO-PREFIX COMMAND EVENTS ----------
     for (const cmd of global.client.commands.values()) {
       if (typeof cmd.handleEvent === "function") {
         try {
@@ -188,10 +191,11 @@ login({ appState: require(appStatePath) }, async (err, api) => {
       }
     }
 
+    // ---------- PREFIX COMMAND ----------
     if (!body.startsWith(PREFIX)) return;
 
     const args = body.slice(PREFIX.length).trim().split(/\s+/);
-    const commandName = args.shift().toLowerCase();
+    const commandName = (args.shift() || "").toLowerCase();
     const cmd = global.client.commands.get(commandName);
 
     if (!cmd) {
