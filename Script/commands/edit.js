@@ -1,19 +1,15 @@
-// edit.js – Moyna Bot style (Mirai/FCA type)
+// edit.js – Local image editor using jimp (no API key needed)
 
 const axios = require("axios");
 const fs = require("fs-extra");
 const path = require("path");
-
-const API_ENDPOINT = "https://tawsif.is-a.dev/gemini/nano-banana";
+const jimp = require("jimp");
 
 // ---------- helper functions ----------
 
 // args / reply থেকে image URL বের করা
 function extractImageUrl(args, event) {
-  // ১) args থেকে http দিয়ে শুরু হওয়া স্ট্রিং খুঁজো
-  let imageUrl = args.find((arg) => /^https?:\/\//i.test(arg));
-
-  // ২) reply করা মেসেজের attachment থেকে
+  let imageUrl = args.find((arg) => /^https?:\/\//.test(arg));
   if (
     !imageUrl &&
     event.messageReply &&
@@ -27,59 +23,106 @@ function extractImageUrl(args, event) {
       imageUrl = imageAttachment.url;
     }
   }
-
   return imageUrl;
 }
 
-// প্রম্পট বের করা (image url বাদ দিয়ে)
-function extractEditPrompt(rawArgs, imageUrl) {
-  let prompt = rawArgs.join(" ");
+// এফেক্ট বের করা
+function extractEffect(rawArgs, imageUrl) {
+  let effect = rawArgs.join(" ");
+  if (imageUrl) effect = effect.replace(imageUrl, "").trim();
+  if (effect.includes("|")) effect = effect.split("|")[0].trim();
+  return effect || "enhance";
+}
 
-  if (imageUrl) {
-    prompt = prompt.replace(imageUrl, "").trim();
+// jimp দিয়ে ইমেজ এডিট করা
+async function editImage(imagePath, effect) {
+  const img = await jimp.read(imagePath);
+  effect = effect.toLowerCase().trim();
+  
+  switch (effect) {
+    case "enhance":
+    case "enhance quality":
+      img.brightness(0.15).contrast(0.2);
+      break;
+    case "blur":
+      img.blur(10);
+      break;
+    case "sharpen":
+      img.sharpen();
+      break;
+    case "grayscale":
+    case "bw":
+    case "blackwhite":
+      img.grayscale();
+      break;
+    case "invert":
+    case "negative":
+      img.invert();
+      break;
+    case "sepia":
+    case "vintage":
+      img.sepia();
+      break;
+    case "brightness":
+      img.brightness(0.3);
+      break;
+    case "dark":
+    case "darken":
+      img.brightness(-0.2);
+      break;
+    default:
+      img.brightness(0.15).contrast(0.2);
   }
-
-  if (prompt.includes("|")) {
-    prompt = prompt.split("|")[0].trim();
-  }
-
-  return prompt || "enhance quality";
+  return img;
 }
 
 // ---------- command config ----------
 
 module.exports.config = {
   name: "edit",
-  version: "1.0.0",
-  credits: "Robin-Bot",
-  description: "Edit or modify an existing image using a text prompt.",
-  commandCategory: "ai-image",
-  cooldowns: 15,
+  version: "2.0.0",
+  credits: "Robin-Bot | Offline Editor by Moyna",
+  description: "Edit image locally: enhance, blur, sharpen, grayscale, invert, sepia, brightness, dark",
+  commandCategory: "image",
+  cooldowns: 10,
 };
 
 // ---------- main run function ----------
 
 module.exports.run = async function ({ api, event, args }) {
   const imageUrl = extractImageUrl(args, event);
-  const editPrompt = extractEditPrompt(args, imageUrl);
+  const effect = extractEffect(args, imageUrl);
 
   if (!imageUrl) {
     return api.sendMessage(
-      "❌ একটা ছবি দাও বা ছবিতে reply করে কমান্ড দাও।",
+      "❌ একটা ছবি দাও বা ছবিতে reply করে কমান্ড দাও।\n\n" +
+      "উদাহরণ:\n" +
+      "/edit enhance\n" +
+      "/edit blur\n" +
+      "/edit grayscale\n" +
+      "/edit invert\n" +
+      "/edit sepia\n" +
+      "/edit sharpen\n" +
+      "/edit brightness\n" +
+      "/edit dark",
       event.threadID,
       event.messageID
     );
   }
 
-  if (!editPrompt.trim()) {
+  const validEffects = [
+    "enhance", "blur", "sharpen", "grayscale", "bw", "blackwhite",
+    "invert", "negative", "sepia", "vintage", "brightness", "dark", "darken"
+  ];
+  
+  if (!validEffects.includes(effect.toLowerCase())) {
     return api.sendMessage(
-      "❌ কীভাবে edit করতে চাও সেটা লিখে দাও।",
+      `❌ "${effect}" জানি না।\n\nপ্রয়োজনীয় effects:\nenhance, blur, sharpen, grayscale, invert, sepia, brightness, dark`,
       event.threadID,
       event.messageID
     );
   }
 
-  // reaction দিতে চাইলে (mirai/fca তে কাজ করে)
   if (api.setMessageReaction) {
     api.setMessageReaction("⏳", event.messageID, () => {}, true);
   }
@@ -87,22 +130,7 @@ module.exports.run = async function ({ api, event, args }) {
   let tempFilePath;
 
   try {
-    const fullApiUrl = `${API_ENDPOINT}?prompt=${encodeURIComponent(
-      editPrompt
-    )}&url=${encodeURIComponent(imageUrl)}`;
-
-    const apiResponse = await axios.get(fullApiUrl, {
-      timeout: 60000,
-    });
-
-    const data = apiResponse.data;
-    if (!data || !data.success || !data.imageUrl) {
-      throw new Error(data?.error || "API থেকে সঠিক image URL পাওয়া যায়নি।");
-    }
-
-    const finalImageUrl = data.imageUrl;
-
-    const imageDownloadResponse = await axios.get(finalImageUrl, {
+    const imageDownloadResponse = await axios.get(imageUrl, {
       responseType: "stream",
       timeout: 60000,
     });
@@ -110,8 +138,7 @@ module.exports.run = async function ({ api, event, args }) {
     const cacheDir = path.join(__dirname, "cache");
     await fs.ensureDir(cacheDir);
 
-    tempFilePath = path.join(cacheDir, `edited_nano_${Date.now()}.png`);
-
+    tempFilePath = path.join(cacheDir, `edit_original_${Date.now()}.png`);
     const writer = fs.createWriteStream(tempFilePath);
     imageDownloadResponse.data.pipe(writer);
 
@@ -123,20 +150,23 @@ module.exports.run = async function ({ api, event, args }) {
       });
     });
 
+    const editedImage = await editImage(tempFilePath, effect);
+    const outputPath = path.join(cacheDir, `edit_output_${Date.now()}.png`);
+    await editedImage.write(outputPath);
+
     if (api.setMessageReaction) {
       api.setMessageReaction("✅", event.messageID, () => {}, true);
     }
 
-    return api.sendMessage(
+    api.sendMessage(
       {
-        body: `✅ Edit complete!\nPrompt: ${editPrompt}`,
-        attachment: fs.createReadStream(tempFilePath),
+        body: `✅ Edit complete!\nEffect: ${effect}`,
+        attachment: fs.createReadStream(outputPath),
       },
       event.threadID,
       () => {
-        if (tempFilePath && fs.existsSync(tempFilePath)) {
-          fs.unlinkSync(tempFilePath);
-        }
+        if (tempFilePath && fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+        if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
       },
       event.messageID
     );
@@ -145,11 +175,9 @@ module.exports.run = async function ({ api, event, args }) {
       api.setMessageReaction("❌", event.messageID, () => {}, true);
     }
 
-    let errorMessage = "ছবি edit করার সময় সমস্যা হয়েছে।";
-    if (error.response && error.response.data && error.response.data.error) {
-      errorMessage += `\nAPI Error: ${error.response.data.error}`;
-    } else if (error.code === "ECONNABORTED") {
-      errorMessage = "⏰ API থেকে response পেতে অনেক দেরি হচ্ছে (timeout)।";
+    let errorMessage = "ছবি edit করার সময় সমস্যা হয়েছে।";
+    if (error.code === "ECONNABORTED") {
+      errorMessage = "⏰ ছবি ডাউনলোড করতে অনেক দেরি হচ্ছে (timeout)।";
     } else if (error.message) {
       errorMessage = error.message;
     }
