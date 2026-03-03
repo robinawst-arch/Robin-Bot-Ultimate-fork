@@ -21,7 +21,22 @@ module.exports.handleEvent = async function ({
   const time = moment.tz("Asia/Dhaka").format("HH:MM:ss L");
   var idgr = `${event.threadID}`;
   var id = event.senderID;
+
+  // bot নিজের message হলে ignore করো (infinite loop বন্ধ)
+  const botID = api.getCurrentUserID();
+  if (event.senderID === botID) return;
+
+  // message body না থাকলে (join/leave/reaction ইত্যাদি) ignore করো
+  if (!event.body || typeof event.body !== "string") return;
+
   var name = await Users.getNameUser(event.senderID);
+
+  // "moyna" দিয়ে শুরু হলে llama.js handle করবে, bot.js চুপ থাকবে
+  if (
+    event.body.toLowerCase().startsWith("moyna") ||
+    event.body.normalize("NFC").startsWith("ময়না".normalize("NFC"))
+  )
+    return;
 
   var tl = [
     "বেশি bot Bot করলে leave নিবো কিন্তু😒😒 ",
@@ -179,7 +194,7 @@ module.exports.handleEvent = async function ({
   ) {
     return api.sendMessage(
       "<আমি তোমাকে রাইতে মিস খাই🥹🤖👅/👅-✘  🎀 🍒:))",
-      threadID
+      threadID,
     );
   }
 
@@ -197,7 +212,7 @@ module.exports.handleEvent = async function ({
   ) {
     return api.sendMessage(
       "তোরে আমি শান্তি দিমু☺️😇 পাসপোর্ট ছাড়া ভিসা দিমু😾🔪",
-      threadID
+      threadID,
     );
   }
 
@@ -240,7 +255,7 @@ module.exports.handleEvent = async function ({
   ) {
     return api.sendMessage(
       "উনি এখন কাজে বিজি আছে কি বলবেন আমাকে বলতে পারেন..!😘",
-      threadID
+      threadID,
     );
   }
 
@@ -250,7 +265,7 @@ module.exports.handleEvent = async function ({
   ) {
     return api.sendMessage(
       "‎[𝐎𝐖𝐍𝐄𝐑:☞ RobiN ッ ☜\n𝚈𝚘𝚞 𝙲𝚊𝚗 𝙲𝚊𝚕𝚕 𝙷𝚒𝚖 RobiN.\n𝐇𝐢𝐬 𝐅𝐚𝐜𝐞𝐛𝐨𝐨𝐤 𝐢𝐝 :- https://www.facebook.com/robin.whoisme\nতার সাতে যোগা যোগ করবেন WhatsApp :- 01645531838",
-      threadID
+      threadID,
     );
   }
 
@@ -260,7 +275,7 @@ module.exports.handleEvent = async function ({
   ) {
     return api.sendMessage(
       "My Creator:RobiN ❤️ হাই আমি মেছেন্জার ROBOT  আামার বস রবিন আমাকে বানিয়েছেন আপনাদের কে হাসানোর জন্য আমি চাই আপনারা সব সময় হাসি খুশি থাকেন",
-      threadID
+      threadID,
     );
   }
 
@@ -270,14 +285,14 @@ module.exports.handleEvent = async function ({
   ) {
     return api.sendMessage(
       "He is RobiN ッ❤️ তাকে সবাই রবিন নামে  চিনে🤙",
-      threadID
+      threadID,
     );
   }
 
   if (event.body.toLowerCase() == "ai" || event.body.toLowerCase() == "Ai") {
     return api.sendMessage(
       "If you want to use the AI command, type /ai ",
-      threadID
+      threadID,
     );
   }
 
@@ -307,7 +322,7 @@ module.exports.handleEvent = async function ({
   ) {
     return api.sendMessage(
       "সরি বস মাফ করে দেন আর এমন ভুল হবে না🥺🙏",
-      threadID
+      threadID,
     );
   }
 
@@ -317,24 +332,21 @@ module.exports.handleEvent = async function ({
   ) {
     return api.sendMessage(
       "খবরদার কেউ এই আইড়ি মেনশন দিবানা এটা আমার বস রবিন এর বউ এর আইড়ি😠🥰⛏️",
-      threadID
+      threadID,
     );
   }
 
-  if (
-    event.body.toLowerCase() == "Moyna" ||
-    event.body.toLowerCase() == "moyna"
-  ) {
+  if (event.body.toLowerCase() == "" || event.body.toLowerCase() == "") {
     return api.sendMessage(
       "খবরদার কেউ এই নাম ধরে ডাক দিবানা এটা আমার বস রবিন এর বউ এর নাম..!😠🥰⛏️",
-      threadID
+      threadID,
     );
   }
 
   if (event.body.toLowerCase() == "mim" || event.body.toLowerCase() == "Mim") {
     return api.sendMessage(
       "খবরদার কেউ এই নাম ধরে ডাক দিবানা এটা আমার বস রবিন এর বউ এর নাম..!😠🥰⛏️",
-      threadID
+      threadID,
     );
   }
 
@@ -344,7 +356,7 @@ module.exports.handleEvent = async function ({
   ) {
     return api.sendMessage(
       "খবরদার কেউ এই নাম ধরে ডাক দিবানা এটা মিরাজুল এর বউ এর নাম..!😠🥰⛏️",
-      threadID
+      threadID,
     );
   }
 
@@ -354,7 +366,7 @@ module.exports.handleEvent = async function ({
   ) {
     return api.sendMessage(
       "খবরদার কেউ এই নাম ধরে ডাক দিবানা এটা মোহন এর বারো ভাতারি বউ এর নাম..!😠🥰🫦",
-      threadID
+      threadID,
     );
   }
 
@@ -373,7 +385,7 @@ module.exports.handleEvent = async function ({
   ) {
     return api.sendMessage(
       "️এতো ধন্যবাদ না দিয়ে পারলে গার্লফ্রেন্ড টা দিয়ে দে..!🌚⛏️🌶️",
-      threadID
+      threadID,
     );
   }
 
@@ -386,14 +398,14 @@ module.exports.handleEvent = async function ({
   ) {
     return api.sendMessage(
       "️রাগ করে না সোনা পাখি এতো রাগ শরীরের জন্য ভালো না🥰",
-      threadID
+      threadID,
     );
   }
 
   if (event.body.toLowerCase() == "হুম" || event.body.toLowerCase() == "Hum") {
     return api.sendMessage(
       "️হুম মারাইস না মাথা এমনিতেই গরম আছে🤬⛏️😷",
-      threadID
+      threadID,
     );
   }
 
@@ -411,7 +423,7 @@ module.exports.handleEvent = async function ({
   ) {
     return api.sendMessage(
       "️আমার বাচ্চা তো তোমার গার্লফ্রেন্ডের পেটে..!!🌚⛏️🌶️ ",
-      threadID
+      threadID,
     );
   }
 
@@ -428,7 +440,7 @@ module.exports.handleEvent = async function ({
   ) {
     return api.sendMessage(
       "️Kiss Randi Ka Name Le Ke Mood Khrab Kr Diya.🙄 Dubara Naam Mat Lena Iska",
-      threadID
+      threadID,
     );
   }
 
@@ -438,7 +450,7 @@ module.exports.handleEvent = async function ({
   ) {
     return api.sendMessage(
       "️এত cda cdi করস কেনো দেখা যাবে বাসর-রাতে-তুই-কতো পারিস..!🥱🌝🌚⛏️🌶️ ",
-      threadID
+      threadID,
     );
   }
 
@@ -449,7 +461,7 @@ module.exports.handleEvent = async function ({
   if (event.body.toLowerCase() == "😒" || event.body.toLowerCase() == "🙄") {
     return api.sendMessage(
       "️ এইদিকে ওইদিকে কি দেখো জানু আমি তোমার সামনে দেখো😘",
-      threadID
+      threadID,
     );
   }
 
@@ -460,14 +472,14 @@ module.exports.handleEvent = async function ({
   ) {
     return api.sendMessage(
       "️চিন্তা করো কেন আমি তো আছি🫶/nতোমাকে রাইতে ভালোবাসবো",
-      threadID
+      threadID,
     );
   }
 
   if (event.body.toLowerCase() == "gf" || event.body.toLowerCase() == "bf") {
     return api.sendMessage(
       "খালি কি তোরাই পেম করবি আমাকেও একটা গফ দে<🥺",
-      threadID
+      threadID,
     );
   }
 
@@ -481,7 +493,7 @@ module.exports.handleEvent = async function ({
   ) {
     return api.sendMessage(
       "ভাই তুই এত হাসিস না হাসলে তোরে চোরের মত লাগে..!🌚🤣",
-      threadID
+      threadID,
     );
   }
 
@@ -493,7 +505,7 @@ module.exports.handleEvent = async function ({
   ) {
     return api.sendMessage(
       "ভালোবাসা নামক আবলামী করতে চাইলে  ইনবক্সে চলে যা পাগল ছাগল🌚🐸🌶️🍆",
-      threadID
+      threadID,
     );
   }
 
@@ -506,7 +518,7 @@ module.exports.handleEvent = async function ({
   ) {
     return api.sendMessage(
       "আমি তখনই ভালো থাকি যখন আপনাকে হাসতে দেখি🤎☺️",
-      threadID
+      threadID,
     );
   }
 
@@ -526,7 +538,7 @@ module.exports.handleEvent = async function ({
   ) {
     return api.sendMessage(
       "সব মুতার জায়গায় গুঁতা দেওয়ার ধান্দা 😪🥱",
-      threadID
+      threadID,
     );
   }
 
@@ -540,7 +552,7 @@ module.exports.handleEvent = async function ({
   ) {
     return api.sendMessage(
       "কিরে তুই কই যাস কোন মেয়ের সাথে চিপায় যাবি..!🌚🌶️🍆⛏️",
-      threadID
+      threadID,
     );
   }
 
@@ -550,7 +562,7 @@ module.exports.handleEvent = async function ({
   ) {
     return api.sendMessage(
       "না ঝাং 🥹 তুমি রান্না করে রাখো আমি এসে খাবো <😘",
-      threadID
+      threadID,
     );
   }
 

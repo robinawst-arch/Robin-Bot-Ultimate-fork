@@ -45,7 +45,7 @@ module.exports.run = async function ({ api, event, args }) {
   // Check if group has image
   if (!threadInfo.imageSrc) {
     return api.sendMessage(
-      `🔧 GC Name: ${threadName}\n🔧 Group ID: ${id}\n🔧 Approval: ${pd}\n🔧 Emoji: ${icon}\n🔧 Information: including ${threadMem} members\n🔧 Number of males: ${nam} members\n🔧 Number of females: ${nu} members\n🔧 With ${qtv} administrators\n🔧 Total number of messages: ${sl} msgs.\n\nMade with ❤️ by: 𝗜𝘀𝗹𝗮𝘂𝗜𝗬𝗿 𝗬𝗵𝗮𝘁 𝗯𝗼𝘁 `,
+      `🔧 GC Name: ${threadName}\n🔧 Group ID: ${id}\n🔧 Approval: ${pd}\n🔧 Emoji: ${icon}\n🔧 Information: including ${threadMem} members\n🔧 Number of males: ${nam} members\n🔧 Number of females: ${nu} members\n🔧 With ${qtv} administrators\n🔧 Total number of messages: ${sl} msgs.\n\nMade with ❤️ by: Moyna 𝗯𝗼𝘁 `,
       event.threadID,
       event.messageID
     );

@@ -1,191 +1,313 @@
-// edit.js – Image editor using working RemoveAPI service
+// edit.js – Smart Image Editor using Sharp (local, no API needed) + Bangla support
 
 const axios = require("axios");
 const fs = require("fs-extra");
 const path = require("path");
+const sharp = require("sharp");
 
-// ---------- helper functions ----------
-
-// args / reply থেকে image URL বের করা
-function extractImageUrl(args, event) {
-  let imageUrl = args.find((arg) => /^https?:\/\//.test(arg));
-  if (
-    !imageUrl &&
-    event.messageReply &&
-    event.messageReply.attachments &&
-    event.messageReply.attachments.length > 0
-  ) {
-    const imageAttachment = event.messageReply.attachments.find(
-      (att) => att.type === "photo" || att.type === "image"
-    );
-    if (imageAttachment && imageAttachment.url) {
-      imageUrl = imageAttachment.url;
-    }
-  }
-  return imageUrl;
-}
-
-// এফেক্ট বের করা
-function extractEffect(rawArgs, imageUrl) {
-  let effect = rawArgs.join(" ");
-  if (imageUrl) effect = effect.replace(imageUrl, "").trim();
-  if (effect.includes("|")) effect = effect.split("|")[0].trim();
-  return effect || "enhance";
-}
-
-// RemoveAPI দিয়ে ইমেজ এডিট করা
-async function editImage(imageUrl, effect) {
-  effect = effect.toLowerCase().trim();
-  
-  // RemoveAPI endpoints for different effects
-  const apiMap = {
-    "enhance": "https://api.remove.bg/v1.0/removebg",
-    "blur": "https://api.remove.bg/v1.0/removebg",
-    "grayscale": "https://api.remove.bg/v1.0/removebg",
-    "bw": "https://api.remove.bg/v1.0/removebg",
-    "sepia": "https://api.remove.bg/v1.0/removebg",
-    "invert": "https://api.remove.bg/v1.0/removebg",
-    "brightness": "https://api.remove.bg/v1.0/removebg",
-    "dark": "https://api.remove.bg/v1.0/removebg",
-  };
-
-  // Using imgbb API for image hosting/transformation as fallback
-  // Or use imgurapi for transformations
-  try {
-    // Try using imgflip image transformation API (free, no key needed)
-    const response = await axios({
-      method: "post",
-      url: "https://api.imgbb.com/1/upload",
-      data: {
-        image: imageUrl,
-        key: "184d7036d500ebbe" // public test key
-      },
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-      },
-      timeout: 30000
-    });
-
-    if (response.data && response.data.data && response.data.data.url) {
-      return response.data.data.url;
-    }
-  } catch (e) {
-    // Fallback to direct image transformation
-  }
-
-  // Fallback: return URL with transformation parameters
-  // Using URL-based image transformation service (works without API key)
-  const transformUrl = `https://images.weserv.nl/?url=${encodeURIComponent(imageUrl)}&w=800&q=75`;
-  
-  return transformUrl;
-}
-
-// ---------- command config ----------
+const CACHE_DIR = path.join(__dirname, "cache");
 
 module.exports.config = {
   name: "edit",
-  version: "3.0.0",
-  credits: "Robin-Bot | API Editor",
-  description: "Edit image: enhance, blur, grayscale, invert, sepia, brightness, dark",
+  version: "6.0.0",
+  credits: "Robin-Bot",
+  aliases: ["aiedit", "photoedit", "filter"],
+  hasPermssion: 0,
+  countDown: 5,
   commandCategory: "image",
-  cooldowns: 10,
+  description: "বাংলায় বলুন — AI ছবি edit করবে",
+  usages:
+    "ছবিতে reply করে লিখুন:\n{pn} কালো সাদা করো\n{pn} উজ্জ্বল করো\n{pn} ঝাপসা করো\n{pn} পুরনো লুক দাও\n{pn} নেগেটিভ করো",
 };
 
-// ---------- main run function ----------
+// Effect keywords (Bangla + English)
+const EFFECTS = [
+  {
+    name: "grayscale",
+    label: "⬛ কালো-সাদা",
+    keys: [
+      "কালো সাদা",
+      "কালো-সাদা",
+      "বাংলা",
+      "grayscale",
+      "bw",
+      "black white",
+      "bnw",
+      "সাদাকালো",
+    ],
+  },
+  {
+    name: "bright",
+    label: "☀️ উজ্জ্বল",
+    keys: [
+      "উজ্জ্বল",
+      "আলো বাড়াও",
+      "밝",
+      "bright",
+      "lighten",
+      "আলো",
+      "হালকা করো",
+    ],
+  },
+  {
+    name: "dark",
+    label: "🌑 অন্ধকার",
+    keys: ["অন্ধকার", "dark", "darken", "কালো করো", "dim", "মন্দ আলো"],
+  },
+  {
+    name: "blur",
+    label: "🌫️ ঝাপসা",
+    keys: ["ঝাপসা", "blur", "blurry", "흐린", "fuzzy", "ধোঁয়াশা"],
+  },
+  {
+    name: "sharpen",
+    label: "🔪 শার্প",
+    keys: ["sharp", "sharpen", "পরিষ্কার", "স্পষ্ট", "sharpness", "선명"],
+  },
+  {
+    name: "sepia",
+    label: "🟤 সেপিয়া/পুরনো",
+    keys: [
+      "sepia",
+      "পুরনো",
+      "vintage",
+      "পুরোনো লুক",
+      "old",
+      "retro",
+      "ক্লাসিক",
+    ],
+  },
+  {
+    name: "invert",
+    label: "🔄 নেগেটিভ",
+    keys: ["invert", "নেগেটিভ", "negative", "উল্টো রং", "রং উল্টো"],
+  },
+  {
+    name: "contrast",
+    label: "🎨 কনট্রাস্ট",
+    keys: ["contrast", "কনট্রাস্ট", "বৈপরীত্য", "vivid", "প্রাণবন্ত"],
+  },
+  {
+    name: "cartoon",
+    label: "🎨 কার্টুন",
+    keys: ["cartoon", "কার্টুন", "anime", "আনিমে", "poster", "পোস্টার"],
+  },
+  {
+    name: "warm",
+    label: "🔆 উষ্ণ/গরম টোন",
+    keys: ["warm", "উষ্ণ", "গরম", "yellow", "হলুদ", "সোনালি", "golden"],
+  },
+  {
+    name: "cool",
+    label: "❄️ শীতল/নীল টোন",
+    keys: ["cool", "শীতল", "ঠান্ডা", "blue", "নীল", "winter"],
+  },
+  {
+    name: "flip",
+    label: "↕️ উল্টা/ফ্লিপ",
+    keys: ["flip", "উল্টা", "উপর নিচ", "vertical flip", "উল্টে দাও"],
+  },
+  {
+    name: "mirror",
+    label: "↔️ মিরর",
+    keys: ["mirror", "আয়না", "flop", "horizontal flip", "বাম ডান"],
+  },
+  {
+    name: "rotate",
+    label: "🔄 ঘুরাও",
+    keys: ["rotate", "ঘুরাও", "90", "১৮০", "180"],
+  },
+];
 
-module.exports.run = async function ({ api, event, args }) {
-  const imageUrl = extractImageUrl(args, event);
-  const effect = extractEffect(args, imageUrl);
+function detectEffect(text) {
+  const lower = text.toLowerCase();
+  for (const effect of EFFECTS) {
+    for (const key of effect.keys) {
+      if (lower.includes(key.toLowerCase())) return effect;
+    }
+  }
+  return null;
+}
 
-  if (!imageUrl) {
+async function applyEffect(inputPath, outputPath, effectName) {
+  let img = sharp(inputPath);
+
+  switch (effectName) {
+    case "grayscale":
+      img = img.grayscale();
+      break;
+    case "bright":
+      img = img.modulate({ brightness: 1.5 });
+      break;
+    case "dark":
+      img = img.modulate({ brightness: 0.5 });
+      break;
+    case "blur":
+      img = img.blur(6);
+      break;
+    case "sharpen":
+      img = img.sharpen(10);
+      break;
+    case "sepia":
+      img = img.grayscale().tint({ r: 112, g: 66, b: 20 });
+      break;
+    case "invert":
+      img = img.negate();
+      break;
+    case "contrast":
+      img = img.linear(1.8, -(128 * 0.8));
+      break;
+    case "cartoon":
+      img = img.modulate({ saturation: 3 }).sharpen(8);
+      break;
+    case "warm":
+      img = img.tint({ r: 255, g: 200, b: 150 });
+      break;
+    case "cool":
+      img = img.tint({ r: 150, g: 200, b: 255 });
+      break;
+    case "flip":
+      img = img.flip();
+      break;
+    case "mirror":
+      img = img.flop();
+      break;
+    case "rotate":
+      img = img.rotate(90);
+      break;
+    default:
+      img = img.modulate({ brightness: 1.2, saturation: 1.3 });
+  }
+
+  await img.jpeg({ quality: 90 }).toFile(outputPath);
+}
+
+module.exports.run = async ({ api, event, args }) => {
+  const { threadID, messageID, messageReply } = event;
+
+  // ১. ছবি আছে কিনা
+  if (
+    !messageReply ||
+    !messageReply.attachments ||
+    messageReply.attachments.length === 0
+  ) {
+    const effectList = EFFECTS.map((e) => `• ${e.label}`).join("\n");
     return api.sendMessage(
-      "❌ একটা ছবি দাও বা ছবিতে reply করে কমান্ড দাও।\n\n" +
-      "উদাহরণ:\n" +
-      "/edit enhance\n" +
-      "/edit blur\n" +
-      "/edit grayscale\n" +
-      "/edit invert\n" +
-      "/edit sepia\n" +
-      "/edit brightness\n" +
-      "/edit dark",
-      event.threadID,
-      event.messageID
+      "❌ একটি ছবিতে reply করে কমান্ড দিন!\n\n" +
+        "📌 নিয়ম: ছবিতে reply করে /edit লিখুন\n\n" +
+        "✨ available effects:\n" +
+        effectList,
+      threadID,
+      messageID,
     );
   }
 
-  const validEffects = [
-    "enhance", "blur", "grayscale", "bw", "invert", "sepia", "brightness", "dark"
-  ];
-  
-  if (!validEffects.includes(effect.toLowerCase())) {
+  const attachment = messageReply.attachments.find(
+    (a) => a.type === "photo" || a.type === "image",
+  );
+  if (!attachment?.url) {
     return api.sendMessage(
-      `❌ "${effect}" জানি না।\n\nপ্রয়োজনীয় effects:\nenhance, blur, grayscale, invert, sepia, brightness, dark`,
-      event.threadID,
-      event.messageID
+      "❌ ছবি পাওয়া যায়নি। ছবিতে reply করুন।",
+      threadID,
+      messageID,
     );
   }
 
-  if (api.setMessageReaction) {
-    api.setMessageReaction("⏳", event.messageID, () => {}, true);
+  // ২. Prompt
+  const prompt = args.join(" ").trim();
+  if (!prompt) {
+    const effectList = EFFECTS.map(
+      (e) => `• ${e.label}: ${e.keys.slice(0, 2).join(", ")}`,
+    ).join("\n");
+    return api.sendMessage(
+      "❌ কী effect চান লিখুন!\n\nউদাহরণ: /edit কালো সাদা করো\n\n" +
+        "📋 সব effects:\n" +
+        effectList,
+      threadID,
+      messageID,
+    );
   }
+
+  // ৩. Effect detect করো
+  let effect = detectEffect(prompt);
+
+  // যদি না পাওয়া যায়, translate করে আবার try করো
+  if (!effect) {
+    try {
+      const transRes = await axios.get(
+        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(prompt)}&langpair=bn|en`,
+        { timeout: 8000 },
+      );
+      const translated = transRes.data?.responseData?.translatedText || "";
+      effect = detectEffect(translated);
+    } catch {}
+  }
+
+  if (!effect) {
+    const effectList = EFFECTS.map((e) => `${e.label}`).join(", ");
+    return api.sendMessage(
+      `❌ "${prompt}" বুঝতে পারিনি!\n\nAvailable effects:\n${effectList}\n\nউদাহরণ: /edit উজ্জ্বল করো`,
+      threadID,
+      messageID,
+    );
+  }
+
+  api.sendMessage(
+    `⏳ ${effect.label} effect লাগানো হচ্ছে...`,
+    threadID,
+    messageID,
+  );
+
+  await fs.ensureDir(CACHE_DIR);
+  const rawPath = path.join(CACHE_DIR, `edit_raw_${Date.now()}.jpg`);
+  const outPath = path.join(CACHE_DIR, `edit_out_${Date.now()}.jpg`);
 
   try {
-    // Get transformed image URL
-    const transformedUrl = await editImage(imageUrl, effect);
-
-    // Download the transformed image
-    const imageResponse = await axios.get(transformedUrl, {
+    // ৪. ছবি ডাউনলোড
+    const imgRes = await axios.get(attachment.url, {
       responseType: "arraybuffer",
-      timeout: 30000,
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-      }
+      timeout: 20000,
+      headers: { "User-Agent": "Mozilla/5.0" },
     });
+    await fs.writeFile(rawPath, imgRes.data);
 
-    if (!imageResponse.data || imageResponse.data.length === 0) {
-      throw new Error("Image transformation returned empty response");
-    }
+    // ৫. Effect apply
+    await applyEffect(rawPath, outPath, effect.name);
 
-    const cacheDir = path.join(__dirname, "cache");
-    await fs.ensureDir(cacheDir);
-
-    const outputPath = path.join(cacheDir, `edit_${Date.now()}.png`);
-    await fs.writeFile(outputPath, imageResponse.data);
-
-    if (api.setMessageReaction) {
-      api.setMessageReaction("✅", event.messageID, () => {}, true);
-    }
-
-    api.sendMessage(
+    // ৬. পাঠাও
+    await api.sendMessage(
       {
-        body: `✅ Edit complete!\nEffect: ${effect}`,
-        attachment: fs.createReadStream(outputPath),
+        body:
+          `✅ Edit সম্পন্ন!\n` +
+          `🎨 Effect: ${effect.label}\n` +
+          `📝 Prompt: ${prompt}\n` +
+          `🤖 Robin Bot`,
+        attachment: fs.createReadStream(outPath),
       },
-      event.threadID,
+      threadID,
       () => {
-        if (fs.existsSync(outputPath)) {
-          try {
-            fs.unlinkSync(outputPath);
-          } catch (e) {}
-        }
+        [rawPath, outPath].forEach((f) => {
+          if (fs.existsSync(f))
+            try {
+              fs.unlinkSync(f);
+            } catch {}
+        });
       },
-      event.messageID
+      messageID,
     );
   } catch (error) {
-    if (api.setMessageReaction) {
-      api.setMessageReaction("❌", event.messageID, () => {}, true);
-    }
-
-    let errorMessage = "ছবি edit করার সময় সমস্যা হয়েছে।";
-    if (error.code === "ECONNABORTED") {
-      errorMessage = "⏰ ছবি ডাউনলোড করতে অনেক দেরি হচ্ছে (timeout)।";
-    } else if (error.response && error.response.status === 502) {
-      errorMessage = "⚠️ API সার্ভার overload এ আছে। একটু পরে চেষ্টা করো।";
-    } else if (error.message) {
-      errorMessage = error.message;
-    }
-
-    console.error("Edit Command Error:", error);
-    api.sendMessage(`❌ ${errorMessage}`, event.threadID, event.messageID);
+    [rawPath, outPath].forEach((f) => {
+      if (fs.existsSync(f))
+        try {
+          fs.unlinkSync(f);
+        } catch {}
+    });
+    console.error("[EDIT] Error:", error.message);
+    api.sendMessage(
+      `❌ ছবি edit করতে সমস্যা হয়েছে।\n${error.message}`,
+      threadID,
+      messageID,
+    );
   }
 };
+

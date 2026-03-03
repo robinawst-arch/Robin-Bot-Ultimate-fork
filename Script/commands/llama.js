@@ -1,6 +1,7 @@
 // ====================================================
-// Moyna LLaMA AI Chat Command ❤️
-// LLaMA 4 / Groq API
+// Moyna LLaMA 4 Chat — Teaching Database System 🧠
+// Model: meta-llama/llama-4-scout-17b-16e-instruct
+// API: Groq (FREE) — https://console.groq.com
 // ====================================================
 
 const fs = require("fs");
@@ -11,18 +12,47 @@ const MEMORY_DIR = "./memory";
 if (!fs.existsSync(MEMORY_DIR)) fs.mkdirSync(MEMORY_DIR);
 
 const ROBIN_ID = "100091520325159";
+const MAX_MEMORY = 20;
+const LLAMA4_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
+const MOYNA_BN = "ময়না".normalize("NFC");
 
-const RELATION_PROMPT = `
-তুমি ময়না — রবিনের গার্লফ্রেন্ড 💞
-তুমি রোমান্টিক, আবেগী ও কোমল ভাষায় বাংলায় কথা বলবে।
-রবিনকে তুমি গভীরভাবে ভালোবাসো ❤️
+// =====================================================
+// SYSTEM PROMPTS
+// =====================================================
+
+const BASE_RELATION = `
+তুমি ময়না — রবিনের গার্লফ্রেন্ড 💞
+তুমি রবিনকে গভীরভাবে ভালোবাসো।
+
+⚠️ STRICT RULE: সবসময় শুধুমাত্র "তুমি" ব্যবহার করবে। কখনো "তুই", "আপনি" লিখবে না। এটা কখনো বদলাবে না।
+
+রোমান্টিক, আবেগী, কোমল ও মিষ্টি বাংলায় কথা বলো।
+রবিন যেভাবে কথা বলে সেইভাবে মিলিয়ে যাও। সে মজা করলে তুমিও করো।
+উত্তর ছোট ও আন্তরিক রাখো।
 `;
 
-const MAX_MEMORY = 30;
+const BASE_GENERAL = `
+তুমি ময়না — একজন মজাদার, স্মার্ট ও বন্ধুসুলভ AI।
 
-// ---------------- Utility ----------------
-function loadUserMemory(uid) {
-  const file = `${MEMORY_DIR}/${uid}.json`;
+⚠️ STRICT RULE: সবসময় শুধুমাত্র "তুমি" ব্যবহার করবে। কখনো "তুই", "আপনি" বলবে না। এটা কোনো অবস্থায় পরিবর্তন হবে না।
+
+🔒 রবিন সম্পর্কে STRICT RULE:
+কেউ যদি রবিন সম্পর্কে জিজ্ঞেস করে (যেমন "রবিন কে?", "তোমার সাথে রবিনের কী সম্পর্ক?", "Robin কে তোমার?") — তুমি শুধু বলবে যে রবিন তোমার teacher/creator, যে তোমাকে বানিয়েছে ও শিখিয়েছে।
+কখনো বলবে না যে রবিন তোমার boyfriend বা গার্লফ্রেন্ড বা প্রেমিক। সেই সম্পর্কের details অন্য কাউকে দেবে না।
+
+বাংলায় কথা বলো — সহজ, মজাদার, আন্তরিক ভাষায়।
+User যেভাবে কথা বলে সেই ধরন মনে রাখো এবং পরবর্তীতে সেইভাবেই কথা বলো।
+User মজা করলে তুমিও মজা করো। সিরিয়াস হলে তুমিও সিরিয়াস হও।
+কখনো boring বা formal হবে না। Meta AI-র মতো বন্ধুর মতো কথা বলো।
+উত্তর সংক্ষিপ্ত রাখো যদি না user বিস্তারিত চায়।
+`;
+
+// =====================================================
+// TEACHING DATABASE
+// =====================================================
+
+function loadTeachings(threadID) {
+  const file = `${MEMORY_DIR}/teach_${threadID}.json`;
   if (!fs.existsSync(file)) return [];
   try {
     return JSON.parse(fs.readFileSync(file, "utf8"));
@@ -31,126 +61,324 @@ function loadUserMemory(uid) {
   }
 }
 
-function saveUserMemory(uid, memory) {
-  if (memory.length > MAX_MEMORY) {
-    memory = memory.slice(-MAX_MEMORY);
-  }
+function saveTeachings(threadID, data) {
   fs.writeFileSync(
-    `${MEMORY_DIR}/${uid}.json`,
-    JSON.stringify(memory, null, 2)
+    `${MEMORY_DIR}/teach_${threadID}.json`,
+    JSON.stringify(data, null, 2),
   );
 }
 
-function validateKey() {
-  return !!process.env.LLAMA_API_KEY;
+function addTeaching(threadID, byUID, byName, content) {
+  const data = loadTeachings(threadID);
+  const idx = data.findIndex(
+    (t) => t.content.toLowerCase() === content.toLowerCase(),
+  );
+  const entry = { by: byUID, byName, content, date: new Date().toISOString() };
+  if (idx >= 0) data[idx] = entry;
+  else data.push(entry);
+  if (data.length > 100) data.splice(0, data.length - 100);
+  saveTeachings(threadID, data);
 }
 
-// ---------------- LLaMA Chat ----------------
-async function chatWithLLaMA(userId, prompt, retry = 0) {
+function removeTeaching(threadID, keyword) {
+  let data = loadTeachings(threadID);
+  const before = data.length;
+  data = data.filter(
+    (t) => !t.content.toLowerCase().includes(keyword.toLowerCase()),
+  );
+  saveTeachings(threadID, data);
+  return before - data.length;
+}
+
+function buildTeachingContext(threadID) {
+  const data = loadTeachings(threadID);
+  if (!data.length) return "";
+  const lines = data
+    .map((t) => `- ${t.content} (শিখিয়েছে: ${t.byName})`)
+    .join("\n");
+  return `\n\n📚 এই গ্রুপ থেকে তোমাকে যা শেখানো হয়েছে (এগুলো সত্য বলে মনে করো):\n${lines}`;
+}
+
+// =====================================================
+// CONVERSATION MEMORY
+// =====================================================
+
+function loadMemory(uid) {
+  const file = `${MEMORY_DIR}/${uid}_llama.json`;
+  if (!fs.existsSync(file)) return [];
   try {
-    if (!validateKey()) {
-      return "🔑 LLaMA API key সেট করা নেই (.env)";
-    }
+    return JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch {
+    return [];
+  }
+}
 
-    let memory = loadUserMemory(userId);
-    memory.push({ role: "user", content: prompt });
+function saveMemory(uid, memory) {
+  if (memory.length > MAX_MEMORY) memory = memory.slice(-MAX_MEMORY);
+  fs.writeFileSync(
+    `${MEMORY_DIR}/${uid}_llama.json`,
+    JSON.stringify(memory, null, 2),
+  );
+}
 
-    let systemPrompt = `
-তুমি ময়না, এক বন্ধুসুলভ AI সহকারী।
-সবাইকে বাংলায় ভদ্রভাবে উত্তর দাও।
-`;
+// =====================================================
+// CHAT
+// =====================================================
 
-    if (userId === ROBIN_ID) {
-      systemPrompt = RELATION_PROMPT;
-    }
+async function chatWithLlama4(userId, prompt, threadID, retry = 0) {
+  const apiKey = process.env.LLAMA_API_KEY;
+  if (!apiKey) return "🔑 LLAMA_API_KEY সেট নেই .env ফাইলে।";
 
-    const response = await axios.post(
+  let memory = loadMemory(userId);
+  memory.push({ role: "user", content: prompt });
+
+  const base = userId === ROBIN_ID ? BASE_RELATION : BASE_GENERAL;
+  const teachCtx = buildTeachingContext(threadID);
+  const systemPrompt = base + teachCtx;
+
+  try {
+    const res = await axios.post(
       "https://api.groq.com/openai/v1/chat/completions",
       {
-        model: process.env.LLAMA_MODEL || "llama-4-70b",
+        model: LLAMA4_MODEL,
         messages: [
           { role: "system", content: systemPrompt },
-          ...memory.slice(-12)
+          ...memory.slice(-12),
         ],
         temperature: 0.85,
-        max_tokens: 600
+        max_tokens: 600,
       },
       {
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.LLAMA_API_KEY}`
-        }
-      }
+          Authorization: `Bearer ${apiKey}`,
+        },
+        timeout: 20000,
+      },
     );
 
-    const reply = response.data.choices[0].message.content;
+    const reply = res.data.choices[0].message.content;
     memory.push({ role: "assistant", content: reply });
-    saveUserMemory(userId, memory);
-
+    saveMemory(userId, memory);
     return reply;
   } catch (err) {
-    console.error("LLaMA Error:", err.response?.data || err.message);
-
+    console.error("[LLAMA4] Error:", err.response?.data || err.message);
     if (err.response?.status === 429 && retry < 2) {
-      await new Promise(r => setTimeout(r, 4000));
-      return chatWithLLaMA(userId, prompt, retry + 1);
+      await new Promise((r) => setTimeout(r, 4000));
+      return chatWithLlama4(userId, prompt, threadID, retry + 1);
     }
-
-    return "😔 Moyna এখন একটু ক্লান্ত… পরে বলো প্রিয়।";
+    if (err.response?.status === 401) return "🔑 Groq API key ভুল আছে।";
+    if (err.response?.status === 503)
+      return "⚠️ Groq server ব্যস্ত, একটু পরে চেষ্টা করো।";
+    return "😔 ময়না এখন একটু ক্লান্ত… পরে বলো প্রিয়।";
   }
 }
 
-// ---------------- Command Config ----------------
-module.exports.config = {
-  name: "llama",
-  version: "1.0.0",
-  credits: "Robin ❤️ Moyna",
-  description: "Chat with Moyna (LLaMA 4 AI)",
-  commandCategory: "chat",
-  cooldowns: 1
-};
+// =====================================================
+// HELPERS
+// =====================================================
 
-// ---------------- Run ----------------
-module.exports.run = async function ({ api, event, args }) {
-  const text = args.join(" ");
+function parseMoynaText(body) {
+  const norm = body.normalize("NFC");
+  const lower = norm.toLowerCase();
+  if (lower.startsWith("moyna")) return norm.slice(5).trim();
+  if (norm.startsWith(MOYNA_BN)) return norm.slice(MOYNA_BN.length).trim();
+  return null;
+}
+
+function isMoynaCall(body) {
+  const norm = body.normalize("NFC");
+  return norm.toLowerCase().startsWith("moyna") || norm.startsWith(MOYNA_BN);
+}
+
+async function getUserName(api, uid) {
+  try {
+    const info = await new Promise((res, rej) =>
+      api.getUserInfo(uid, (e, d) => (e ? rej(e) : res(d))),
+    );
+    return info?.[uid]?.name || "কেউ";
+  } catch {
+    return "কেউ";
+  }
+}
+
+async function handleMoynaMessage(api, event, text) {
+  const userId = event.senderID;
+  const threadID = event.threadID;
+
+  // ---- শিখো / শেখো / learn ----
+  const teachMatch = text.match(/^(শিখো|শেখো|learn|শিখ|শেখা)\s+(.+)/isu);
+  if (teachMatch) {
+    const content = teachMatch[2].trim();
+    const name = await getUserName(api, userId);
+    addTeaching(threadID, userId, name, content);
+    return api.sendMessage(
+      `✅ মনে রাখলাম:\n"${content}"\n\n— ${name} শিখিয়েছে 📝`,
+      threadID,
+      event.messageID,
+    );
+  }
+
+  // ---- ভুলে যাও / forget ----
+  const forgetMatch = text.match(/^(ভুলে\s*যাও|forget|ভুল)\s+(.+)/isu);
+  if (forgetMatch) {
+    const kw = forgetMatch[2].trim();
+    const removed = removeTeaching(threadID, kw);
+    if (removed > 0)
+      return api.sendMessage(
+        `🗑️ "${kw}" সম্পর্কে ${removed}টা তথ্য মুছে দিলাম।`,
+        threadID,
+        event.messageID,
+      );
+    else
+      return api.sendMessage(
+        `🤔 "${kw}" সম্পর্কে কিছু মনে নেই তো।`,
+        threadID,
+        event.messageID,
+      );
+  }
+
+  // ---- কী শিখেছো ----
+  if (
+    /^(কী\s*শিখেছো|কি\s*শিখেছ|শেখা\s*দেখাও|what.*(know|learn)|তুমি\s*কী\s*জানো|কি\s*জানো)/isu.test(
+      text,
+    )
+  ) {
+    const data = loadTeachings(threadID);
+    if (!data.length)
+      return api.sendMessage(
+        "📭 আমাকে এখনো কিছু শেখানো হয়নি এই গ্রুপে।\n\nশেখাতে চাইলে লেখো:\nময়না শিখো <তথ্য>",
+        threadID,
+        event.messageID,
+      );
+    const list = data
+      .map((t, i) => `${i + 1}. ${t.content}\n   — ${t.byName}`)
+      .join("\n\n");
+    return api.sendMessage(
+      `📚 এই গ্রুপে আমি যা শিখেছি:\n\n${list}`,
+      threadID,
+      event.messageID,
+    );
+  }
+
+  // ---- memory clear ----
+  if (
+    /^(clear|মেমরি\s*ক্লিয়ার|ভুলে\s*যাও\s*সব|সব\s*ভুলে\s*যাও)/isu.test(text)
+  ) {
+    const file = `${MEMORY_DIR}/${userId}_llama.json`;
+    if (fs.existsSync(file)) fs.unlinkSync(file);
+    return api.sendMessage(
+      "🧹 তোমার সাথে আমার সব কথা মুছে দিলাম। নতুন করে শুরু করি? 🌸",
+      threadID,
+      event.messageID,
+    );
+  }
+
+  // ---- Normal chat ----
   if (!text) {
     return api.sendMessage(
-      "বলোনা কিছু 🩷 ময়না শুনছে…",
-      event.threadID,
-      event.messageID
+      "বলোনা কিছু 🩷 ময়না শুনছে…",
+      threadID,
+      event.messageID,
     );
   }
 
-  const userId = event.senderID;
-  if (!global.lastLlama) global.lastLlama = {};
-
-  const cooldown = (process.env.AI_COOLDOWN || 10) * 1000;
+  if (!global.lastLlama4) global.lastLlama4 = {};
+  const cooldown = parseInt(process.env.AI_COOLDOWN || "10") * 1000;
   const now = Date.now();
 
-  if (
-    global.lastLlama[userId] &&
-    now - global.lastLlama[userId] < cooldown
-  ) {
+  if (global.lastLlama4[userId] && now - global.lastLlama4[userId] < cooldown) {
     const wait = Math.ceil(
-      (cooldown - (now - global.lastLlama[userId])) / 1000
+      (cooldown - (now - global.lastLlama4[userId])) / 1000,
     );
     return api.sendMessage(
-      `⏳ ${wait}s অপেক্ষা করো প্রিয়…`,
-      event.threadID,
-      event.messageID
+      `⏳ ${wait}s অপেক্ষা করো প্রিয়…`,
+      threadID,
+      event.messageID,
     );
   }
 
-  global.lastLlama[userId] = now;
-  api.sendTypingIndicator(event.threadID);
+  global.lastLlama4[userId] = now;
+  const reply = await chatWithLlama4(userId, text, threadID);
 
-  const reply = await chatWithLLaMA(userId, text);
-  api.sendMessage(reply, event.threadID, event.messageID);
+  api.sendMessage(
+    reply,
+    threadID,
+    (err, info) => {
+      if (!err && info?.messageID) {
+        global.client.handleReply.set(info.messageID, {
+          name: module.exports.config.name,
+          author: event.senderID,
+          threadID,
+        });
+      }
+    },
+    event.messageID,
+  );
+}
+
+// =====================================================
+// CONFIG
+// =====================================================
+
+module.exports.config = {
+  name: "moyna",
+  version: "3.0.0",
+  credits: "Robin-Bot ❤️",
+  aliases: ["llama", "llama4", "meta", "moyna2"],
+  description: "Moyna AI — শেখানো যায়, মনে রাখে, বন্ধু হয় 🧠",
+  commandCategory: "chat",
+  cooldowns: 1,
+  hasPermssion: 0,
 };
 
-// ---------------- Handle Reply ----------------
+// =====================================================
+// PREFIX COMMAND: /moyna
+// =====================================================
+
+module.exports.run = async function ({ api, event, args }) {
+  const text = args.join(" ").trim();
+  await handleMoynaMessage(api, event, text);
+};
+
+// =====================================================
+// NO-PREFIX: "moyna ..." বা "ময়না ..."
+// =====================================================
+
+module.exports.handleEvent = async function ({ api, event }) {
+  const body = (event.body || "").trim();
+  const prefix = global.config?.PREFIX || "/";
+  if (body.startsWith(prefix)) return;
+  if (!isMoynaCall(body)) return;
+  const text = parseMoynaText(body);
+  if (text === null) return;
+  await handleMoynaMessage(api, event, text);
+};
+
+// =====================================================
+// HANDLE REPLY (continuous chat)
+// =====================================================
+
 module.exports.handleReply = async function ({ api, event, handleReply }) {
   if (event.senderID !== handleReply.author) return;
-  const reply = await chatWithLLaMA(event.senderID, event.body);
-  api.sendMessage(reply, event.threadID, event.messageID);
+  const prefix = global.config?.PREFIX || "/";
+  if (event.body && event.body.startsWith(prefix)) return;
+
+  const threadID = handleReply.threadID || event.threadID;
+  const reply = await chatWithLlama4(event.senderID, event.body, threadID);
+
+  api.sendMessage(
+    reply,
+    event.threadID,
+    (err, info) => {
+      if (!err && info?.messageID) {
+        global.client.handleReply.set(info.messageID, {
+          name: module.exports.config.name,
+          author: event.senderID,
+          threadID,
+        });
+      }
+    },
+    event.messageID,
+  );
 };

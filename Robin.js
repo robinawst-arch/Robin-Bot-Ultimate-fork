@@ -17,9 +17,12 @@ app.listen(PORT, () => {
 });
 
 // Render / VPS heartbeat
-setInterval(() => {
-  console.log("🫀 Heartbeat: process alive");
-}, 1000 * 60 * 5);
+setInterval(
+  () => {
+    console.log("🫀 Heartbeat: process alive");
+  },
+  1000 * 60 * 5,
+);
 
 // ===================== IMPORTS =====================
 const fs = require("fs");
@@ -43,7 +46,10 @@ const PREFIX = config.PREFIX || "/";
 const BOTNAME = config.BOTNAME || "Moyna";
 
 // ===================== LOAD APPSTATE =====================
-const appStatePath = path.join(__dirname, config.APPSTATEPATH || "appstate.json");
+const appStatePath = path.join(
+  __dirname,
+  config.APPSTATEPATH || "appstate.json",
+);
 if (!fs.existsSync(appStatePath)) {
   console.error("❌ appstate.json missing");
   process.exit(1);
@@ -64,7 +70,11 @@ function normalizeEventBasics(event) {
 
   // Some FCA forks place mentions here
   const lmd = event.logMessageData;
-  if (!Object.keys(event.mentions).length && lmd?.mentions && typeof lmd.mentions === "object") {
+  if (
+    !Object.keys(event.mentions).length &&
+    lmd?.mentions &&
+    typeof lmd.mentions === "object"
+  ) {
     event.mentions = lmd.mentions;
   }
   if (
@@ -159,7 +169,12 @@ login({ appState: require(appStatePath) }, async (err, api) => {
   Threads.setAPI(api);
 
   // ================= SEND MESSAGE WRAPPER =================
-  global.sendMessageWithTyping = async function (message, threadID, callback, messageID) {
+  global.sendMessageWithTyping = async function (
+    message,
+    threadID,
+    callback,
+    messageID,
+  ) {
     return new Promise((resolve, reject) => {
       api.sendMessage(
         message,
@@ -168,7 +183,7 @@ login({ appState: require(appStatePath) }, async (err, api) => {
           if (err2) reject(err2);
           else resolve(info);
         },
-        messageID
+        messageID,
       );
     });
   };
@@ -250,7 +265,10 @@ login({ appState: require(appStatePath) }, async (err, api) => {
     }
 
     // ---------- NO-PREFIX COMMAND EVENTS ----------
+    const seenCmds = new Set();
     for (const cmd of global.client.commands.values()) {
+      if (seenCmds.has(cmd)) continue;
+      seenCmds.add(cmd);
       if (typeof cmd.handleEvent === "function") {
         try {
           await cmd.handleEvent({
