@@ -30,14 +30,14 @@ module.exports.run = async ({ api, args, event }) => {
       api.sendMessage("⏳ Downloading...", event.threadID, event.messageID);
 
       const response = await axios.get(
-        `${API_BASE}/ytDl3.php?link=${id}&format=mp3`
+        `${API_BASE}/ytDl3.php?link=${id}&format=mp3`,
       );
 
       if (!response.data || !response.data.downloadLink) {
         return api.sendMessage(
           "❌ Download failed!",
           event.threadID,
-          event.messageID
+          event.messageID,
         );
       }
 
@@ -51,14 +51,14 @@ module.exports.run = async ({ api, args, event }) => {
         },
         event.threadID,
         () => fs.unlinkSync(filePath),
-        event.messageID
+        event.messageID,
       );
     } catch (e) {
       console.error("Download error:", e.message);
       return api.sendMessage(
         "❌ Download failed!",
         event.threadID,
-        event.messageID
+        event.messageID,
       );
     }
   }
@@ -85,7 +85,7 @@ module.exports.run = async ({ api, args, event }) => {
     return api.sendMessage(
       "⭕ No results found.",
       event.threadID,
-      event.messageID
+      event.messageID,
     );
 
   let msg = "🎵 Select a song:\n\n";
@@ -103,7 +103,7 @@ module.exports.run = async ({ api, args, event }) => {
         const thumbPath = path.join(
           __dirname,
           "cache",
-          `thumb_${Date.now()}_${i}.jpg`
+          `thumb_${Date.now()}_${i}.jpg`,
         );
         thumbs.push(await saveImage(item.thumbnail, thumbPath));
       } catch (e) {
@@ -118,7 +118,7 @@ module.exports.run = async ({ api, args, event }) => {
     event.threadID,
     (err, info) => {
       if (!err && info && info.messageID) {
-        global.client.handleReply.push({
+        global.client.handleReply.set(info.messageID, {
           name: module.exports.config.name,
           messageID: info.messageID,
           author: event.senderID,
@@ -126,7 +126,7 @@ module.exports.run = async ({ api, args, event }) => {
         });
       }
     },
-    event.messageID
+    event.messageID,
   );
 };
 
@@ -137,7 +137,7 @@ module.exports.handleReply = async ({ api, event, handleReply }) => {
     return api.sendMessage(
       "❌ Invalid choice.",
       event.threadID,
-      event.messageID
+      event.messageID,
     );
 
   const vid = handleReply.results[choice - 1].id;
@@ -146,14 +146,14 @@ module.exports.handleReply = async ({ api, event, handleReply }) => {
     api.sendMessage("⏳ Downloading...", event.threadID, event.messageID);
 
     const response = await axios.get(
-      `${API_BASE}/ytDl3.php?link=${vid}&format=mp3`
+      `${API_BASE}/ytDl3.php?link=${vid}&format=mp3`,
     );
 
     if (!response.data || !response.data.downloadLink) {
       return api.sendMessage(
         "❌ Download failed!",
         event.threadID,
-        event.messageID
+        event.messageID,
       );
     }
 
@@ -169,14 +169,14 @@ module.exports.handleReply = async ({ api, event, handleReply }) => {
       },
       event.threadID,
       () => fs.unlinkSync(filePath),
-      event.messageID
+      event.messageID,
     );
   } catch (e) {
     console.error("Sing download error:", e.message);
     return api.sendMessage(
       "❌ Download failed!",
       event.threadID,
-      event.messageID
+      event.messageID,
     );
   }
 };

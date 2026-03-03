@@ -43,14 +43,14 @@ module.exports = {
       return api.sendMessage(
         "❌ Please provide a search keyword",
         threadID,
-        messageID
+        messageID,
       );
     }
 
     try {
       // Use API for search
       const searchUrl = `${API_BASE}/ytFullSearch.php?songName=${encodeURIComponent(
-        keyWord
+        keyWord,
       )}`;
       const { data: results } = await axios.get(searchUrl);
 
@@ -58,7 +58,7 @@ module.exports = {
         return api.sendMessage(
           `⭕ No results for: ${keyWord}`,
           threadID,
-          messageID
+          messageID,
         );
       }
 
@@ -77,7 +77,7 @@ module.exports = {
             const thumbPath = path.join(
               __dirname,
               "cache",
-              `thumb_${Date.now()}_${i}.jpg`
+              `thumb_${Date.now()}_${i}.jpg`,
             );
             thumbs.push(await saveImage(item.thumbnail, thumbPath));
           } catch (e) {
@@ -92,7 +92,7 @@ module.exports = {
         threadID,
         (err, info) => {
           if (!err && info && info.messageID) {
-            global.client.handleReply.push({
+            global.client.handleReply.set(info.messageID, {
               name: module.exports.config.name,
               messageID: info.messageID,
               author: senderID,
@@ -101,7 +101,7 @@ module.exports = {
             });
           }
         },
-        messageID
+        messageID,
       );
     } catch (err) {
       console.error("Video search error:", err.message);
@@ -115,7 +115,7 @@ module.exports = {
       return api.sendMessage(
         "❌ Invalid choice.",
         event.threadID,
-        event.messageID
+        event.messageID,
       );
     }
 
@@ -134,14 +134,14 @@ module.exports = {
         return api.sendMessage(
           "❌ Download failed!",
           event.threadID,
-          event.messageID
+          event.messageID,
         );
       }
 
       const filePath = path.join(
         __dirname,
         "cache",
-        `ytb_${Date.now()}.${format}`
+        `ytb_${Date.now()}.${format}`,
       );
       await downloadFile(data.downloadLink, filePath);
 
@@ -154,14 +154,14 @@ module.exports = {
         },
         event.threadID,
         () => fs.unlinkSync(filePath),
-        event.messageID
+        event.messageID,
       );
     } catch (e) {
       console.error("Video download error:", e.message);
       return api.sendMessage(
         "❌ Download failed!",
         event.threadID,
-        event.messageID
+        event.messageID,
       );
     }
   },
