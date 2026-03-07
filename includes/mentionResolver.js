@@ -1,30 +1,74 @@
 // Shared mention resolver used across commands
 // Exports: getMentionIdsRobust(api, event), getMentionPairs(event), getTargetMention(api, event, body)
 
+function extractIdsFromMentionsObj(obj) {
+  if (!obj || typeof obj !== "object") return [];
+
+  // Some fca forks: array of { id, tag } or { uid, name } objects
+  if (Array.isArray(obj)) {
+    return obj
+      .map((o) => String(o?.id || o?.uid || ""))
+      .filter((s) => /^\d{5,}$/.test(s));
+  }
+
+  const keys = Object.keys(obj);
+  if (!keys.length) return [];
+
+  // Standard: { "UID": "@Name" }  or  { "UID": { tag, name, ... } }
+  if (keys.every((k) => /^\d+$/.test(k))) return keys;
+
+  // Inverted format (some fca forks): { "@Name": "UID" } or { "Name": "UID" }
+  const vals = Object.values(obj);
+  if (vals.every((v) => typeof v === "string" && /^\d{5,}$/.test(v.trim()))) {
+    return vals.map((v) => v.trim());
+  }
+
+  // Mixed: values may be objects with .id / .uid
+  const fromValues = keys
+    .map((k) => {
+      const v = obj[k];
+      if (typeof v === "object" && v !== null) {
+        const id = String(v?.id || v?.uid || "");
+        return /^\d{5,}$/.test(id) ? id : null;
+      }
+      return null;
+    })
+    .filter(Boolean);
+  if (fromValues.length) return fromValues;
+
+  return [];
+}
+
 async function getMentionIdsRobust(api, event) {
   // A) classic mentions object
-  if (event?.mentions && typeof event.mentions === "object") {
-    const ids = Object.keys(event.mentions);
+  if (event?.mentions) {
+    const ids = extractIdsFromMentionsObj(event.mentions);
     if (ids.length) return ids;
   }
 
   // B) forks: logMessageData.mentions or messageMetadata.mentions
   const lmd = event?.logMessageData;
-  if (lmd?.mentions && typeof lmd.mentions === "object") {
-    const ids = Object.keys(lmd.mentions);
+  if (lmd?.mentions) {
+    const ids = extractIdsFromMentionsObj(lmd.mentions);
     if (ids.length) return ids;
   }
-  if (lmd?.messageMetadata?.mentions && typeof lmd.messageMetadata.mentions === "object") {
-    const ids = Object.keys(lmd.messageMetadata.mentions);
+  if (lmd?.messageMetadata?.mentions) {
+    const ids = extractIdsFromMentionsObj(lmd.messageMetadata.mentions);
     if (ids.length) return ids;
   }
 
-  // C) reply to message -> extract replied sender
+  // C) some fca builds put it on event.messageMetadata directly
+  if (event?.messageMetadata?.mentions) {
+    const ids = extractIdsFromMentionsObj(event.messageMetadata.mentions);
+    if (ids.length) return ids;
+  }
+
+  // D) reply to message -> extract replied sender
   if (event?.type === "message_reply" && event.messageReply?.senderID) {
     return [event.messageReply.senderID];
   }
 
-  // D) fallback: parse "@Name" and resolve uid from thread
+  // E) fallback: parse "@Name" and resolve uid from thread
   const body = typeof event?.body === "string" ? event.body : "";
   const atName = extractAtName(body);
   if (!atName) return [];
@@ -35,19 +79,37 @@ async function getMentionIdsRobust(api, event) {
 
 function getMentionPairs(event) {
   const out = [];
-  if (event?.mentions && typeof event.mentions === "object") {
-    for (const uid of Object.keys(event.mentions)) {
-      const v = event.mentions[uid];
-      const name = typeof v === "string" ? v : (v?.tag || v?.name || "@User");
-      out.push({ id: uid, name });
+  const mentionSrc =
+    event?.mentions ||
+    event?.logMessageData?.mentions ||
+    event?.messageMetadata?.mentions;
+  if (mentionSrc && typeof mentionSrc === "object") {
+    if (Array.isArray(mentionSrc)) {
+      for (const o of mentionSrc) {
+        const id = String(o?.id || o?.uid || "");
+        const name = o?.tag || o?.name || "@User";
+        if (id) out.push({ id, name });
+      }
+    } else {
+      for (const uid of Object.keys(mentionSrc)) {
+        if (!/^\d+$/.test(uid)) continue;
+        const v = mentionSrc[uid];
+        const name = typeof v === "string" ? v : v?.tag || v?.name || "@User";
+        out.push({ id: uid, name });
+      }
     }
     if (out.length) return out;
   }
   const lmd = event?.logMessageData;
-  if (lmd?.mentions && typeof lmd.mentions === "object") {
+  if (
+    lmd?.mentions &&
+    typeof lmd.mentions === "object" &&
+    !Array.isArray(lmd.mentions)
+  ) {
     for (const uid of Object.keys(lmd.mentions)) {
+      if (!/^\d+$/.test(uid)) continue;
       const v = lmd.mentions[uid];
-      const name = typeof v === "string" ? v : (v?.tag || v?.name || "@User");
+      const name = typeof v === "string" ? v : v?.tag || v?.name || "@User";
       out.push({ id: uid, name });
     }
   }
@@ -66,10 +128,16 @@ async function getTargetMention(api, event, body) {
   }
 
   // fallback by text
-  const atName = extractAtName(body || (typeof event?.body === "string" ? event.body : ""));
+  const atName = extractAtName(
+    body || (typeof event?.body === "string" ? event.body : ""),
+  );
   if (!atName) return null;
 
-  const resolved = await resolveUserByNameFromThread(api, event.threadID, atName);
+  const resolved = await resolveUserByNameFromThread(
+    api,
+    event.threadID,
+    atName,
+  );
   if (resolved) return { id: resolved, name: "@" + atName };
 
   // if not resolved, log details to help debugging
@@ -91,8 +159,11 @@ function extractAtName(body) {
   if (idx === -1) return null;
   const sub = body.slice(idx + 1).trim();
   if (!sub) return null;
-  const m = sub.match(/(.+?)(\s{2,}|\n|$)/);
-  const name = (m?.[1] || "").trim();
+
+  // Capture everything after @ until: double-space, newline, or end-of-string
+  // Named people have single spaces ("Robin Ali") so stop only at double space or EOL
+  const m = sub.match(/^([^\n]+?)(?:\s{2,}|\n|$)/);
+  const name = (m?.[1] || sub).trim();
   return name.length ? name : null;
 }
 
@@ -103,7 +174,10 @@ async function resolveUserByNameFromThread(api, threadID, nameQuery) {
     if (!ids.length) return null;
     const info = await api.getUserInfo(ids);
     const qRaw = String(nameQuery || "").toLowerCase();
-    const normalize = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+    const normalize = (s) =>
+      String(s || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "");
     const q = normalize(qRaw);
 
     // exact normalized match
@@ -130,7 +204,12 @@ async function resolveUserByNameFromThread(api, threadID, nameQuery) {
     }
 
     // if we reach here, no match; log all participant names for debugging
-    console.warn("[mentionResolver] participant list when resolution failed for", qRaw, "normalized", q);
+    console.warn(
+      "[mentionResolver] participant list when resolution failed for",
+      qRaw,
+      "normalized",
+      q,
+    );
     ids.forEach((uid) => {
       const nm = info?.[uid]?.name || "";
       console.warn("   ", uid, "->", nm, "norm=", normalize(nm));
