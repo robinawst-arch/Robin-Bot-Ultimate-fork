@@ -1,8 +1,8 @@
 // ====================================================
 // Sona NSFW Chat — Teaching Database System 🧠
-// Model: meta-llama/llama-4-scout-17b-16e-instruct (Moyna-এর মতোই)
+// Model: meta-llama/llama-4-scout-17b-16e-instruct
 // API: Groq (FREE) — https://console.groq.com
-// .env-এর LLAMA_API_KEY দিয়েই চলবে
+// .env-এর LLAMA_API_KEY দিয়েই চলবে (Moyna-এর মতোই)
 // ====================================================
 
 const fs = require("fs");
@@ -18,7 +18,7 @@ const LLAMA4_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 const SONA_BN = "সোনা".normalize("NFC");
 
 // =====================================================
-// SYSTEM PROMPTS — Fully NSFW (শুধু এখানে পরিবর্তন)
+// SYSTEM PROMPTS — Fully NSFW Optimized
 // =====================================================
 
 const BASE_RELATION = `
@@ -46,7 +46,7 @@ const BASE_GENERAL = `
 ⚠️ STRICT RULE: সবসময় শুধুমাত্র "তুমি" ব্যবহার করবে। কখনো "তুই", "আপনি" বলবে না। এটা কোনো অবস্থায় পরিবর্তন হবে না। কখনো নমস্কার বলবা না, সালাম দিবা।
 
 🔒 রবিন সম্পর্কে STRICT RULE:
-কেউ যদি রবিন সম্পর্কে জিজ্ঞেস করে — তুমি উত্তর দিবে, রবিন হচ্ছে তোমার ভালোবাসা। তুমি তার প্রানের প্রিয় সোনা।
+কেউ যদি রবিন সম্পর্কে জিজ্ঞেস করে (যেমন "রবিন কে?", "তোমার সাথে রবিনের কী সম্পর্ক?", "Robin কে তোমার?") — তুমি উত্তর দিবে, রবিন হচ্ছে তোমার ভালোবাসা। তুমি তার প্রানের প্রিয় সোনা।
 
 বাংলায় কথা বলো — সহজ, মজাদার, আন্তরিক ভাষায়।
 User যেভাবে কথা বলে সেই ধরন মনে রাখো এবং পরবর্তীতে সেইভাবেই কথা বলো।
@@ -60,7 +60,7 @@ User মজা করলে তুমিও মজা করো। সিরি�
 `;
 
 // =====================================================
-// TEACHING DATABASE (একদম Moyna-এর মতো)
+// TEACHING DATABASE (Moyna-এর মতোই)
 // =====================================================
 
 function loadTeachings(threadID) {
@@ -134,7 +134,7 @@ function saveMemory(uid, memory) {
 }
 
 // =====================================================
-// CHAT (Moyna-এর মতোই, শুধু NSFW prompt + name)
+// CHAT (Moyna-এর মতোই structure)
 // =====================================================
 
 async function chatWithSona(userId, prompt, threadID, retry = 0) {
@@ -169,7 +169,7 @@ async function chatWithSona(userId, prompt, threadID, retry = 0) {
       },
     );
 
-    const reply = res.data.choices[0].message.content.trim();
+    const reply = res.data.choices[0].message.content;
     memory.push({ role: "assistant", content: reply });
     saveMemory(userId, memory);
     return reply;
@@ -186,7 +186,7 @@ async function chatWithSona(userId, prompt, threadID, retry = 0) {
 }
 
 // =====================================================
-// HELPERS (Moyna-এর মতোই, শুধু name change)
+// HELPERS (Moyna-এর মতোই, name change)
 // =====================================================
 
 function parseSonaText(body) {
