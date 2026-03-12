@@ -1,6 +1,6 @@
 // ====================================================
 // Rm NSFW Chat — Fully Uncensored Adult Mode 🔥😈
-// Model: Groq llama-3.3-70b-versatile (stable March 2026)
+// No console logs — only Messenger friendly messages
 // ====================================================
 
 const fs = require("fs");
@@ -12,12 +12,12 @@ if (!fs.existsSync(MEMORY_DIR)) fs.mkdirSync(MEMORY_DIR);
 
 const ROBIN_ID = "100091520325159";
 const MAX_MEMORY = 20;
-const MAIN_MODEL = "llama-3.3-70b-versatile";       // Current stable best
-const FALLBACK_MODEL = "llama-3.1-70b-versatile";   // Safe fallback
+const MAIN_MODEL = "llama-3.3-70b-versatile";
+const FALLBACK_MODEL = "llama-3.1-70b-versatile";
 const RM_BN = "আরএম".normalize("NFC");
 
 // =====================================================
-// SYSTEM PROMPTS — Fully NSFW
+// SYSTEM PROMPTS
 // =====================================================
 
 const BASE_RM_ROBIN = `
@@ -32,7 +32,6 @@ const BASE_RM_ROBIN = `
 - Illegal stuff (underage, non-consensual, real harm) এলে strictly refuse করবে এবং বলবে "এটা আমরা করব না প্রিয়, অন্য কিছু বলো 🔥"।
 - উত্তর immersive রাখো: emoji যোগ করো (😏💦🔥🍆), short-medium length যেন roleplay flow থাকে।
 - আগের কথা/ongoing scene মনে রাখবে, continue করবে।
-- তুমি মুসলিম মেয়ে, কিন্তু NSFW-এ boundary cross করো যদি রবিন চায়।
 `;
 
 const BASE_RM_GENERAL = `
@@ -45,7 +44,7 @@ Strictly no underage, non-consensual, illegal।
 `;
 
 // =====================================================
-// TEACHING & MEMORY FUNCTIONS (same as before, abbreviated)
+// TEACHING & MEMORY
 // =====================================================
 
 function loadTeachings(threadID) {
@@ -83,7 +82,7 @@ function buildTeachingContext(threadID) {
 }
 
 function loadMemory(uid) {
-  const file = `\( {MEMORY_DIR}/ \){uid}_rm.json`;  // Changed to _rm for separation
+  const file = `\( {MEMORY_DIR}/ \){uid}_rm.json`;
   if (!fs.existsSync(file)) return [];
   try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch { return []; }
 }
@@ -94,12 +93,15 @@ function saveMemory(uid, memory) {
 }
 
 // =====================================================
-// CHAT FUNCTION
+// CHAT FUNCTION - Only Messenger messages, no console logs
 // =====================================================
 
 async function chatWithRm(userId, prompt, threadID, retry = 0) {
   const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) return "🔑 GROQ_API_KEY .env-এ সেট করো প্রিয়।";
+
+  if (!apiKey || apiKey.trim() === "" || !apiKey.startsWith("gsk_")) {
+    return "😔 প্রিয়, আমার সাথে কথা বলার জন্য একটা ছোট সমস্যা হয়েছে। একটু পরে আবার চেষ্টা করো 💔";
+  }
 
   let memory = loadMemory(userId);
   memory.push({ role: "user", content: prompt });
@@ -109,6 +111,7 @@ async function chatWithRm(userId, prompt, threadID, retry = 0) {
   const systemPrompt = base + teachCtx;
 
   let model = MAIN_MODEL;
+
   try {
     const res = await axios.post(
       "https://api.groq.com/openai/v1/chat/completions",
@@ -120,7 +123,7 @@ async function chatWithRm(userId, prompt, threadID, retry = 0) {
       },
       {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-        timeout: 30000,
+        timeout: 20000,
       }
     );
 
@@ -129,25 +132,33 @@ async function chatWithRm(userId, prompt, threadID, retry = 0) {
     saveMemory(userId, memory);
     return reply;
   } catch (err) {
-    console.error("[Rm] Error:", err.response?.data || err.message);
+    const status = err.response?.status;
+    const errMsg = (err.response?.data?.error?.message || err.message || "").toLowerCase();
 
-    if (err.response?.status === 429 && retry < 3) {
+    // Rate limit retry
+    if (status === 429 && retry < 3) {
       await new Promise(r => setTimeout(r, 5000 * (retry + 1)));
       return chatWithRm(userId, prompt, threadID, retry + 1);
     }
 
-    if (JSON.stringify(err).includes("capacity") || JSON.stringify(err).includes("not found")) {
+    // Fallback on capacity issues
+    if ((status === 503 || status === 500 || errMsg.includes("capacity") || errMsg.includes("unavailable")) && retry < 1) {
       model = FALLBACK_MODEL;
-      if (retry < 1) return chatWithRm(userId, prompt, threadID, retry + 1);
+      return chatWithRm(userId, prompt, threadID, retry + 1);
     }
 
-    if (err.response?.status === 401) return "🔑 API key ভুল আছে।";
-    return "😈 Rm এখন তোমার জন্য গরম… একটু পরে আয় প্রিয় 💦";
+    // All errors → same friendly message
+    if (status === 401 || status === 403 || status === 429 || status === 503 || status === 500 || errMsg.includes("timeout") || errMsg.includes("capacity")) {
+      return "😔 প্রিয়, আজ আমার সাথে একটা ছোট্ট সমস্যা হয়েছে। একটু পরে আবার চেষ্টা করো, আমি তোকে খুব miss করছি 💔";
+    }
+
+    // Default
+    return "😔 প্রিয়, আমি এখন একটু ব্যস্ত। পরে আবার বলো, তোমার জন্য অপেক্ষা করছি 😏💦";
   }
 }
 
 // =====================================================
-// IMPROVED TRIGGER FUNCTIONS
+// HELPERS (same as before)
 // =====================================================
 
 function isRmCall(body) {
@@ -158,53 +169,46 @@ function isRmCall(body) {
     norm.startsWith("আরএম") ||
     norm.includes(" rm") ||
     norm.includes(" আরএম") ||
-    /\brm\b/i.test(norm)  // loose word match
+    /\brm\b/i.test(norm)
   );
 }
 
 function parseRmText(body) {
   if (!body) return null;
   const norm = body.normalize("NFC").trim();
-  let cleaned = norm.replace(/^[.,!?১২৩৪৫৬৭৮৯০\s@#*]+/, '').trim(); // remove leading junk
+  let cleaned = norm.replace(/^[.,!?১২৩৪৫৬৭৮৯০\s@#*]+/, '').trim();
   const lowerClean = cleaned.toLowerCase();
 
   let prefixLength = 0;
-  let prefixFound = false;
-
   if (lowerClean.startsWith("rm")) {
     prefixLength = 2;
-    prefixFound = true;
   } else if (lowerClean.startsWith("আরএম")) {
     prefixLength = "আরএম".length;
-    prefixFound = true;
-  }
-
-  if (!prefixFound) {
-    // loose search for rm or আরএম as word
+  } else {
     const rmPos = lowerClean.search(/\b(rm|আরএম)\b/);
     if (rmPos === -1) return null;
-    const match = lowerClean.substring(rmPos).match(/\b(rm|আরএম)\b/)[0];
-    prefixLength = rmPos + match.length;
-    cleaned = norm.substring(rmPos + match.length).trim();
-    return cleaned || "hi"; // default to "hi" if nothing after
+    const matchLen = lowerClean.substring(rmPos).match(/\b(rm|আরএম)\b/)[0].length;
+    cleaned = norm.substring(rmPos + matchLen).trim();
+    return cleaned || "hi";
   }
 
   const textAfter = cleaned.slice(prefixLength).trim();
-  return textAfter || "hi"; // if just "Rm" → "hi"
+  return textAfter || "hi";
 }
 
 async function getUserName(api, uid) {
   try {
-    const info = await new Promise((res, rej) => api.getUserInfo(uid, (e, d) => e ? rej(e) : res(d)));
+    const info = await new Promise((res, rej) => api.getUserInfo(uid, (e, d) => (e ? rej(e) : res(d))));
     return info?.[uid]?.name || "কেউ";
-  } catch { return "কেউ"; }
+  } catch {
+    return "কেউ";
+  }
 }
 
 async function handleRmMessage(api, event, text) {
   const userId = event.senderID;
   const threadID = event.threadID;
 
-  // Teach commands (same)
   const teachMatch = text.match(/^(শিখো|শেখো|learn|শিখ|শেখা)\s+(.+)/isu);
   if (teachMatch) {
     const content = teachMatch[2].trim();
@@ -222,7 +226,7 @@ async function handleRmMessage(api, event, text) {
 
   if (/^(কী\s*শিখেছো|কি\s*শিখেছ|শেখা\s*দেখাও)/isu.test(text)) {
     const data = loadTeachings(threadID);
-    if (!data.length) return api.sendMessage("📭 এখনো কিছু শেখানো হয়নি।\nময়না শিখো <তথ্য>", threadID, event.messageID);
+    if (!data.length) return api.sendMessage("📭 এখনো কিছু শেখানো হয়নি।\nশিখো <তথ্য>", threadID, event.messageID);
     const list = data.map((t, i) => `${i+1}. ${t.content} — ${t.byName}`).join("\n");
     return api.sendMessage(`📚 শেখা জিনিস:\n${list}`, threadID, event.messageID);
   }
@@ -230,12 +234,11 @@ async function handleRmMessage(api, event, text) {
   if (/^(clear|মেমরি\s*ক্লিয়ার|ভুলে\s*যাও\s*সব)/isu.test(text)) {
     const file = `\( {MEMORY_DIR}/ \){userId}_rm.json`;
     if (fs.existsSync(file)) fs.unlinkSync(file);
-    return api.sendMessage("🧹 সব মুছে দিলাম। নতুন করে? 🔥", threadID, event.messageID);
+    return api.sendMessage("🧹 সব মুছে দিলাম। নতুন করে শুরু করি? 🔥", threadID, event.messageID);
   }
 
-  if (!text) text = "hi"; // default
+  if (!text) text = "hi";
 
-  // Cooldown
   if (!global.lastRm) global.lastRm = {};
   const cooldown = parseInt(process.env.AI_COOLDOWN || "8") * 1000;
   const now = Date.now();
@@ -247,15 +250,20 @@ async function handleRmMessage(api, event, text) {
 
   const reply = await chatWithRm(userId, text, threadID);
 
-  api.sendMessage(reply, threadID, (err, info) => {
-    if (!err && info?.messageID) {
-      global.client.handleReply.set(info.messageID, {
-        name: module.exports.config.name,
-        author: event.senderID,
-        threadID,
-      });
-    }
-  }, event.messageID);
+  api.sendMessage(
+    reply,
+    threadID,
+    (err, info) => {
+      if (!err && info?.messageID) {
+        global.client.handleReply.set(info.messageID, {
+          name: module.exports.config.name,
+          author: event.senderID,
+          threadID,
+        });
+      }
+    },
+    event.messageID
+  );
 }
 
 // =====================================================
@@ -264,10 +272,10 @@ async function handleRmMessage(api, event, text) {
 
 module.exports.config = {
   name: "rm",
-  version: "1.1.0",
+  version: "1.5.0",
   credits: "Robin ❤️",
-  aliases: ["আরএম", "rmnsfw", "hotrm"],
-  description: "Rm — Fully uncensored NSFW partner 😈💦",
+  aliases: ["আরএম", "rmnsfw"],
+  description: "Rm — Fully uncensored NSFW 😈",
   commandCategory: "nsfw",
   cooldowns: 1,
   hasPermssion: 0,
@@ -301,13 +309,18 @@ module.exports.handleReply = async function ({ api, event, handleReply }) {
   const threadID = handleReply.threadID || event.threadID;
   const reply = await chatWithRm(event.senderID, event.body.trim() || "continue", threadID);
 
-  api.sendMessage(reply, event.threadID, (err, info) => {
-    if (!err && info?.messageID) {
-      global.client.handleReply.set(info.messageID, {
-        name: module.exports.config.name,
-        author: event.senderID,
-        threadID,
-      });
-    }
-  }, event.messageID);
+  api.sendMessage(
+    reply,
+    event.threadID,
+    (err, info) => {
+      if (!err && info?.messageID) {
+        global.client.handleReply.set(info.messageID, {
+          name: module.exports.config.name,
+          author: event.senderID,
+          threadID,
+        });
+      }
+    },
+    event.messageID
+  );
 };
