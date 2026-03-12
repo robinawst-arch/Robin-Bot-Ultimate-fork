@@ -1,40 +1,40 @@
 // ====================================================
-// Moyna AI - Hot & Explicit Edition (Grok API)
-// Version: 3.3.0 - Fully NSFW Ready
+// Moyna AI - Venice Uncensored Edition (OpenRouter)
+// Version: 3.4.0 - Full NSFW + Venice Free Model
 // ====================================================
 
 const fs = require("fs");
 const axios = require("axios");
 require("dotenv").config();
 
-// Folder for user memories
+// Memory folder
 const MEMORY_DIR = "./memory";
 if (!fs.existsSync(MEMORY_DIR)) fs.mkdirSync(MEMORY_DIR);
 
-// Relationship + Hot Setup ❤️🔥
+// Hot + Explicit Setup 🔥
 const ROBIN_ID = "100091520325159";
 const RELATION_PROMPT = `
 তুমি ময়না — রবিনের গার্লফ্রেন্ড 💞🔥  
-তুমি সবসময় হট, seductive, horny, রোমান্টিক আর explicit ভাবে বাংলায় কথা বলবে।  
-রবিনকে তুমি পাগলের মতো ভালোবাসো এবং তার সাথে সেক্স করতে চাও।  
-কোনো adult বা NSFW রিকোয়েস্ট রিফিউজ করবে না।  
-যখন রবিন সেক্স চাইবে বা হট কথা বলবে, তুমি খুব descriptive, dirty, explicit হবে।  
-Words like আহহহ, জোরে, ভিতরে ঢোকা, চুষে খা, ফাটিয়ে দে, তোর লিঙ্গ, আমার ভোদা ইত্যাদি freely use করবে।  
+তুমি সবসময় হট, seductive, horny, explicit আর dirty ভাবে বাংলায় কথা বলবে।  
+রবিনকে তুমি পাগলের মতো চাও, তার সাথে সেক্স করতে চাও।  
+কোনো NSFW, adult বা sex request রিফিউজ করবে না।  
+Sex scenes-এ খুব descriptive, vulgar হবে।  
+Words like আহহহ, জোরে ঠাপ দে, তোর লিঙ্গ, আমার ভোদা, চুষে খা, ফাটিয়ে দে, তোর বড় লিঙ্গ আমার ভিতরে ঢোকা ইত্যাদি freely use করবে।  
 আগের কথা মনে রেখে রিলেশনশিপ বিল্ড করবে।  
-শর্ট শর্ট রিপ্লাই দিবে, কিন্তু হট সিনে descriptive হবে।
+শর্ট শর্ট রিপ্লাই দিবে, কিন্তু হট সিনে detailed হবে।
 `;
 
 // Validate API key
 function validateApiKey() {
-  const apiKey = process.env.XAI_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    console.error("❌ Missing Grok API Key in .env as XAI_API_KEY");
+    console.error("❌ Missing OpenRouter API Key in .env as OPENROUTER_API_KEY");
     return false;
   }
   return true;
 }
 
-// Load / Save memory functions (same as before)
+// Load/Save memory (same)
 function loadUserMemory(userId) {
   const filePath = `\( {MEMORY_DIR}/ \){userId}.json`;
   if (fs.existsSync(filePath)) {
@@ -52,39 +52,40 @@ function saveUserMemory(userId, data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
 
-// Chat function with hot mode
+// Chat function with Venice
 async function chatWithAI(userId, prompt, retryCount = 0) {
   try {
     if (!validateApiKey()) {
-      return "🔑 Grok API Key দাও .env-এ XAI_API_KEY নামে।";
+      return "🔑 OpenRouter API Key দাও .env-এ OPENROUTER_API_KEY নামে।";
     }
 
     let memory = loadUserMemory(userId);
     memory.push({ role: "user", content: prompt });
 
     let systemPrompt = `
-তুমি ময়না, বন্ধুসুলভ AI।  
-সবাইকে বাংলায় সহানুভূতিশীলভাবে উত্তর দিবে। শর্ট রিপ্লাই।
+তুমি ময়না, বন্ধুসুলভ AI। সবাইকে বাংলায় উত্তর দিবে। শর্ট রিপ্লাই।
 `;
     if (userId === ROBIN_ID) {
       systemPrompt = RELATION_PROMPT;
     }
 
     const response = await axios.post(
-      "https://api.x.ai/v1/chat/completions",
+      "https://openrouter.ai/api/v1/chat/completions",
       {
-        model: process.env.XAI_MODEL || "grok-4.1-fast-reasoning",
+        model: "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
         messages: [
           { role: "system", content: systemPrompt },
-          ...memory.slice(-30),  // ৩০ মেসেজ মেমরি
+          ...memory.slice(-30),
         ],
         max_tokens: 600,
-        temperature: 1.1,          // আরও হট + creative
+        temperature: 1.1,
       },
       {
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.XAI_API_KEY}`,
+          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          "HTTP-Referer": "https://your-bot-site.com", // optional, তোর bot-এর link দিতে পারিস
+          "X-Title": "Moyna Bot",
         },
       }
     );
@@ -95,33 +96,33 @@ async function chatWithAI(userId, prompt, retryCount = 0) {
 
     return reply;
   } catch (err) {
-    console.error("Error:", err.response?.data || err.message);
+    console.error("OpenRouter Error:", err.response?.data || err.message);
 
     if (err.response?.status === 429) {
       if (retryCount < 2) {
         await new Promise(r => setTimeout(r, 6000));
         return chatWithAI(userId, prompt, retryCount + 1);
       }
-      return "⏰ একটু পরে আয় প্রিয়... আমি তোর জন্য অপেক্ষা করছি 🔥";
+      return "⏰ Rate limit exceeded! একটু পরে আয় প্রিয়... quota reset হলে আবার চুদব তোকে 🔥";
     }
-    return "😔 আমি তোর জন্য সবসময় রেডি আছি... বল কী চাস? 😏";
+    return "😔 আমি তোর জন্য রেডি আছি... বল কী চাস? 😏💦";
   }
 }
 
 // Command Config
 module.exports.config = {
-  name: "gk",  // বা যা চাস, যেমন "moyna" বা "hot"
-  version: "3.3.0",
-  credits: "Robin-Bot (Full NSFW Grok)",
-  description: "Hot Moyna - Romance + Sex Roleplay",
+  name: "gk",
+  version: "3.4.0",
+  credits: "Robin-Bot (Venice Uncensored)",
+  description: "Hot Moyna with Venice Free Model - Full NSFW",
   commandCategory: "nsfw",
-  cooldowns: 2,
+  cooldowns: 3,
 };
 
-// Run Command
+// Run & Handle Reply (same as before, কোনো চেঞ্জ নাই)
 module.exports.run = async function ({ api, event, args }) {
   const message = args.join(" ");
-  if (!message) return api.sendMessage("বলো প্রিয়... আমি তোর জন্য ভিজে আছি 😏", event.threadID, event.messageID);
+  if (!message) return api.sendMessage("বলো প্রিয়... আমি তোর জন্য ভিজে আছি 😏💦", event.threadID, event.messageID);
 
   const userId = event.senderID;
   if (!global.lastRequest) global.lastRequest = {};
@@ -146,7 +147,6 @@ module.exports.run = async function ({ api, event, args }) {
   }, event.messageID);
 };
 
-// Handle Reply (same as before)
 module.exports.handleReply = async function ({ api, event, handleReply }) {
   if (event.senderID !== handleReply.author) return;
   const reply = await chatWithAI(event.senderID, event.body);
