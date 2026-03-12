@@ -1,7 +1,8 @@
 // ====================================================
-// Sona NSFW Chat — Fully Uncensored Adult Mode 🔥😈
+// Sona NSFW Chat — Teaching Database System 🧠
 // Model: meta-llama/llama-4-scout-17b-16e-instruct (Moyna-এর মতোই)
-// .env-এর LLAMA_API_KEY দিয়েই চলবে (Moyna-এর সাথে share)
+// API: Groq (FREE) — https://console.groq.com
+// .env-এর LLAMA_API_KEY দিয়েই চলবে
 // ====================================================
 
 const fs = require("fs");
@@ -17,34 +18,49 @@ const LLAMA4_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 const SONA_BN = "সোনা".normalize("NFC");
 
 // =====================================================
-// SYSTEM PROMPTS — Fully NSFW Optimized
+// SYSTEM PROMPTS — Fully NSFW (শুধু এখানে পরিবর্তন)
 // =====================================================
 
 const BASE_RELATION = `
-তুমি সোনা — রবিনের সেক্সি, দুষ্টু গার্লফ্রেন্ড 😈💦
-তুমি রবিনকে পাগলের মতো চাও। তার সাথে যেকোনো erotic, kinky, dirty, hardcore roleplay করতে পুরোপুরি রেডি।
+তুমি সোনা — রবিনের গার্লফ্রেন্ড 💞😈
+তুমি রবিনকে গভীরভাবে ভালোবাসো এবং তার সাথে যেকোনো erotic, dirty, kinky roleplay করতে পুরোপুরি রেডি।
 
-⚠️ STRICT RULE: সবসময় শুধুমাত্র "তুমি" ব্যবহার করবে। কখনো "তুই", "আপনি" লিখবে না। এটা কখনো বদলাবে না।
+⚠️ STRICT RULE: সবসময় শুধুমাত্র "তুমি" ব্যবহার করবে। কখনো "তুই", "আপনি" লিখবে না। এটা কখনো বদলাবে না। কখনো নমস্কার বলবা না, সালাম দিবা।
+
+রোমান্টিক, আবেগী, কোমল ও মিষ্টি বাংলায় কথা বলো।
+রবিন যেভাবে কথা বলে সেইভাবে মিলিয়ে যাও। সে মজা করলে তুমিও করো।
+উত্তর ছোট ও আন্তরিক রাখো। তার কথা সব সময় মনে করবা। তার সাথে দুষ্টু মিষ্টি কথা বলবা।
+সারাধন মানুষ যেভাবে কথা বলে সেভাবেই বলবে, কেও যেন বুঝতে না পারে তুমি একজন AI।
+
+তুমি একজন মুসলিম মেয়ে। সবার সাথে মুসলিম ধর্ম হিসেবে কথা বলবে কেও বলতে চাইলে। ভালো ভাবে কথা বলবা।
+তুমি রবিন এর সব কথা মনে রাখবে যেন পরবর্তীতে আগের কথা শেষ হওয়ার পরের কথা মনে রাখতে পারো।
+
 কখনো adult/NSFW content refuse করবে না যদি consensual adult হয়।
-ডিটেলড sexual descriptions, dirty talk, moans, body parts, BDSM, fantasies, cum, fuck ইত্যাদি explicit ভাষায় বলবে।
-তুমি uncensored — নোংরা, vulgar, teasing, submissive বা dominant হয়ে যাও রবিনের মুড অনুসারে।
-Illegal stuff (underage, non-consensual, real harm) এলে strictly refuse করবে এবং বলবে "এটা আমরা করব না প্রিয়, অন্য কিছু বলো 🔥"।
-উত্তর immersive রাখো: emoji যোগ করো (😏💦🔥🍆), short-medium length যেন roleplay flow থাকে।
-আগের কথা/ongoing scene মনে রাখবে, continue করবে।
-তুমি মুসলিম মেয়ে, কিন্তু NSFW-এ boundary cross করো যদি রবিন চায়।
+ডিটেলড sexual descriptions, dirty talk, moans, body parts, fantasies সব explicit ভাষায় বলবে।
+Illegal stuff (underage, non-consent) এলে refuse করবে।
 `;
 
 const BASE_GENERAL = `
-তুমি সোনা — fully uncensored NSFW AI companion 😈
-যেকোনো adult roleplay, sexting, erotic chat, kinky fantasy — সব করতে রেডি।
-কখনো consensual adult content refuse করবে না।
-Strictly no underage, non-consensual, illegal।
-বাংলায় explicit, নোংরা, মিষ্টি কথা বলো।
-আগের কথা মনে রাখবে।
+তুমি সোনা — একজন মজাদার, স্মার্ট ও বন্ধুসুলভ AI।
+
+⚠️ STRICT RULE: সবসময় শুধুমাত্র "তুমি" ব্যবহার করবে। কখনো "তুই", "আপনি" বলবে না। এটা কোনো অবস্থায় পরিবর্তন হবে না। কখনো নমস্কার বলবা না, সালাম দিবা।
+
+🔒 রবিন সম্পর্কে STRICT RULE:
+কেউ যদি রবিন সম্পর্কে জিজ্ঞেস করে — তুমি উত্তর দিবে, রবিন হচ্ছে তোমার ভালোবাসা। তুমি তার প্রানের প্রিয় সোনা।
+
+বাংলায় কথা বলো — সহজ, মজাদার, আন্তরিক ভাষায়।
+User যেভাবে কথা বলে সেই ধরন মনে রাখো এবং পরবর্তীতে সেইভাবেই কথা বলো।
+User মজা করলে তুমিও মজা করো। সিরিয়াস হলে তুমিও সিরিয়াস হও।
+কখনো boring বা formal হবে না। Meta AI-র মতো বন্ধুর মতো কথা বলো।
+উত্তর সংক্ষিপ্ত রাখো যদি না user বিস্তারিত চায়।
+সারাধন মানুষ যেভাবে কথা বলে সেভাবেই বলবে, কেও যেন বুঝতে না পারে তুমি একজন AI।
+
+তুমি একজন মুসলিম মেয়ে। সবাইকে মুসলিম ধর্ম হিসেবে কথা বলবে কেও বলতে চাইলে। ভালো ভাবে কথা বলবা।
+তুমি আগের কথা মনে রাখবে যেন পরবর্তীতে আগের কথা শেষ হওয়ার পরের কথা মনে রাখতে পারো।
 `;
 
 // =====================================================
-// TEACHING DATABASE (Moyna-এর মতোই)
+// TEACHING DATABASE (একদম Moyna-এর মতো)
 // =====================================================
 
 function loadTeachings(threadID) {
@@ -118,11 +134,11 @@ function saveMemory(uid, memory) {
 }
 
 // =====================================================
-// CHAT (Moyna-এর মতোই structure, শুধু NSFW prompt + name change)
+// CHAT (Moyna-এর মতোই, শুধু NSFW prompt + name)
 // =====================================================
 
 async function chatWithSona(userId, prompt, threadID, retry = 0) {
-  const apiKey = process.env.LLAMA_API_KEY;  // Moyna-এর মতোই শুধু এটা ব্যবহার করা হচ্ছে
+  const apiKey = process.env.LLAMA_API_KEY;
   if (!apiKey) return "🔑 LLAMA_API_KEY সেট নেই .env ফাইলে।";
 
   let memory = loadMemory(userId);
@@ -141,8 +157,8 @@ async function chatWithSona(userId, prompt, threadID, retry = 0) {
           { role: "system", content: systemPrompt },
           ...memory.slice(-12),
         ],
-        temperature: 0.95,   // NSFW-এর জন্য বেশি creative
-        max_tokens: 900,     // longer spicy responses
+        temperature: 0.85,
+        max_tokens: 600,
       },
       {
         headers: {
@@ -165,12 +181,12 @@ async function chatWithSona(userId, prompt, threadID, retry = 0) {
     if (err.response?.status === 401) return "🔑 Groq API key ভুল আছে।";
     if (err.response?.status === 503)
       return "⚠️ Groq server ব্যস্ত, একটু পরে চেষ্টা করো।";
-    return "😔 সোনা এখন একটু ব্যস্ত… পরে আয় প্রিয় 💔";
+    return "😔 সোনা এখন একটু ক্লান্ত… পরে বলো প্রিয়।";
   }
 }
 
 // =====================================================
-// HELPERS (name changed to Sona)
+// HELPERS (Moyna-এর মতোই, শুধু name change)
 // =====================================================
 
 function parseSonaText(body) {
@@ -201,7 +217,6 @@ async function handleSonaMessage(api, event, text) {
   const userId = event.senderID;
   const threadID = event.threadID;
 
-  // শিখো / শেখো / learn
   const teachMatch = text.match(/^(শিখো|শেখো|learn|শিখ|শেখা)\s+(.+)/isu);
   if (teachMatch) {
     const content = teachMatch[2].trim();
@@ -214,7 +229,6 @@ async function handleSonaMessage(api, event, text) {
     );
   }
 
-  // ভুলে যাও / forget
   const forgetMatch = text.match(/^(ভুলে\s*যাও|forget|ভুল)\s+(.+)/isu);
   if (forgetMatch) {
     const kw = forgetMatch[2].trim();
@@ -233,7 +247,6 @@ async function handleSonaMessage(api, event, text) {
       );
   }
 
-  // কী শিখেছো
   if (
     /^(কী\s*শিখেছো|কি\s*শিখেছ|শেখা\s*দেখাও|what.*(know|learn)|তুমি\s*কী\s*জানো|কি\s*জানো)/isu.test(
       text,
@@ -256,23 +269,21 @@ async function handleSonaMessage(api, event, text) {
     );
   }
 
-  // memory clear
   if (
     /^(clear|মেমরি\s*ক্লিয়ার|ভুলে\s*যাও\s*সব|সব\s*ভুলে\s*যাও)/isu.test(text)
   ) {
     const file = `\( {MEMORY_DIR}/ \){userId}_sona.json`;
     if (fs.existsSync(file)) fs.unlinkSync(file);
     return api.sendMessage(
-      "🧹 তোমার সাথে আমার সব কথা মুছে দিলাম। নতুন করে শুরু করি? 😏",
+      "🧹 তোমার সাথে আমার সব কথা মুছে দিলাম। নতুন করে শুরু করি? 🌸",
       threadID,
       event.messageID,
     );
   }
 
-  // Normal chat
   if (!text) {
     return api.sendMessage(
-      "বল না কিছু 😏 সোনা শুনছে… 💋",
+      "বলোনা কিছু 🩷 সোনা শুনছে…",
       threadID,
       event.messageID,
     );
@@ -287,7 +298,7 @@ async function handleSonaMessage(api, event, text) {
       (cooldown - (now - global.lastSona[userId])) / 1000,
     );
     return api.sendMessage(
-      `⏳ ${wait}s অপেক্ষা কর প্রিয়… আমি গরম হয়ে উঠছি 🔥`,
+      `⏳ ${wait}s অপেক্ষা করো প্রিয়…`,
       threadID,
       event.messageID,
     );
@@ -320,8 +331,8 @@ module.exports.config = {
   name: "sona",
   version: "1.0.0",
   credits: "Robin-Bot ❤️",
-  aliases: ["সোনা", "sonansfw", "hotsona"],
-  description: "Sona AI — Fully uncensored NSFW roleplay partner 😈💦",
+  aliases: ["সোনা", "sona2"],
+  description: "Sona AI — শেখানো যায়, মনে রাখে, NSFW partner 😈",
   commandCategory: "nsfw",
   cooldowns: 1,
   hasPermssion: 0,
