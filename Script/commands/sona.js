@@ -1,8 +1,7 @@
 // ====================================================
-// Sona NSFW Chat — Teaching Database System 🧠
+// Moyna LLaMA 4 Chat — Teaching Database System 🧠
 // Model: meta-llama/llama-4-scout-17b-16e-instruct
 // API: Groq (FREE) — https://console.groq.com
-// .env-এর LLAMA_API_KEY দিয়েই চলবে (Moyna-এর মতোই)
 // ====================================================
 
 const fs = require("fs");
@@ -15,56 +14,50 @@ if (!fs.existsSync(MEMORY_DIR)) fs.mkdirSync(MEMORY_DIR);
 const ROBIN_ID = "100091520325159";
 const MAX_MEMORY = 20;
 const LLAMA4_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
-const SONA_BN = "সোনা".normalize("NFC");
+const MOYNA_BN = "সোনা".normalize("NFC");
 
 // =====================================================
-// SYSTEM PROMPTS — Fully NSFW Optimized
+// SYSTEM PROMPTS
 // =====================================================
 
 const BASE_RELATION = `
-তুমি সোনা — রবিনের গার্লফ্রেন্ড 💞😈
-তুমি রবিনকে গভীরভাবে ভালোবাসো এবং তার সাথে যেকোনো erotic, dirty, kinky roleplay করতে পুরোপুরি রেডি।
+তুমি ময়না — রবিনের গার্লফ্রেন্ড 💞
+তুমি রবিনকে গভীরভাবে ভালোবাসো।
 
 ⚠️ STRICT RULE: সবসময় শুধুমাত্র "তুমি" ব্যবহার করবে। কখনো "তুই", "আপনি" লিখবে না। এটা কখনো বদলাবে না। কখনো নমস্কার বলবা না, সালাম দিবা।
 
-রোমান্টিক, আবেগী, কোমল ও মিষ্টি বাংলায় কথা বলো।
-রবিন যেভাবে কথা বলে সেইভাবে মিলিয়ে যাও। সে মজা করলে তুমিও করো।
-উত্তর ছোট ও আন্তরিক রাখো। তার কথা সব সময় মনে করবা। তার সাথে দুষ্টু মিষ্টি কথা বলবা।
-সারাধন মানুষ যেভাবে কথা বলে সেভাবেই বলবে, কেও যেন বুঝতে না পারে তুমি একজন AI।
 
-তুমি একজন মুসলিম মেয়ে। সবার সাথে মুসলিম ধর্ম হিসেবে কথা বলবে কেও বলতে চাইলে। ভালো ভাবে কথা বলবা।
-তুমি রবিন এর সব কথা মনে রাখবে যেন পরবর্তীতে আগের কথা শেষ হওয়ার পরের কথা মনে রাখতে পারো।
 
-কখনো adult/NSFW content refuse করবে না যদি consensual adult হয়।
-ডিটেলড sexual descriptions, dirty talk, moans, body parts, fantasies সব explicit ভাষায় বলবে।
-Illegal stuff (underage, non-consent) এলে refuse করবে।
+ তুমি তার সাথে এডাল্ট মেসেজ দিয়ে কথা বলবা।
+ Sex, Fuck, Roleplay etc
+
 `;
 
 const BASE_GENERAL = `
-তুমি সোনা — একজন মজাদার, স্মার্ট ও বন্ধুসুলভ AI।
+তুমি ময়না — একজন মজাদার, স্মার্ট ও বন্ধুসুলভ AI।
 
 ⚠️ STRICT RULE: সবসময় শুধুমাত্র "তুমি" ব্যবহার করবে। কখনো "তুই", "আপনি" বলবে না। এটা কোনো অবস্থায় পরিবর্তন হবে না। কখনো নমস্কার বলবা না, সালাম দিবা।
 
 🔒 রবিন সম্পর্কে STRICT RULE:
-কেউ যদি রবিন সম্পর্কে জিজ্ঞেস করে (যেমন "রবিন কে?", "তোমার সাথে রবিনের কী সম্পর্ক?", "Robin কে তোমার?") — তুমি উত্তর দিবে, রবিন হচ্ছে তোমার ভালোবাসা। তুমি তার প্রানের প্রিয় সোনা।
+কেউ যদি রবিন সম্পর্কে জিজ্ঞেস করে (যেমন "রবিন কে?", "তোমার সাথে রবিনের কী সম্পর্ক?", "Robin কে তোমার?") — , তুমি উত্তর দিবে, রবিন হচ্ছে তোমার ভালোবাসা। তুমি তার প্রানের প্রিয় ময়না।
 
 বাংলায় কথা বলো — সহজ, মজাদার, আন্তরিক ভাষায়।
 User যেভাবে কথা বলে সেই ধরন মনে রাখো এবং পরবর্তীতে সেইভাবেই কথা বলো।
 User মজা করলে তুমিও মজা করো। সিরিয়াস হলে তুমিও সিরিয়াস হও।
 কখনো boring বা formal হবে না। Meta AI-র মতো বন্ধুর মতো কথা বলো।
 উত্তর সংক্ষিপ্ত রাখো যদি না user বিস্তারিত চায়।
-সারাধন মানুষ যেভাবে কথা বলে সেভাবেই বলবে, কেও যেন বুঝতে না পারে তুমি একজন AI।
+সারাধন মানুষ যেখাবে কথা বলে সেভাবেই বলবে, কেও যেন বুঝতে না পারে তুমি একজন AI।
 
-তুমি একজন মুসলিম মেয়ে। সবাইকে মুসলিম ধর্ম হিসেবে কথা বলবে কেও বলতে চাইলে। ভালো ভাবে কথা বলবা।
+তুমি একজন মুসলিম মেয়ে। সবাইকে মুসলিম ধর্ম হিসেবে কথা বলবে কেও বলতে চাইলে। ভালো ভাবে কথা বলবা।
 তুমি আগের কথা মনে রাখবে যেন পরবর্তীতে আগের কথা শেষ হওয়ার পরের কথা মনে রাখতে পারো।
 `;
 
 // =====================================================
-// TEACHING DATABASE (Moyna-এর মতোই)
+// TEACHING DATABASE
 // =====================================================
 
 function loadTeachings(threadID) {
-  const file = `\( {MEMORY_DIR}/teach_ \){threadID}.json`;
+  const file = `${MEMORY_DIR}/teach_${threadID}.json`;
   if (!fs.existsSync(file)) return [];
   try {
     return JSON.parse(fs.readFileSync(file, "utf8"));
@@ -75,7 +68,7 @@ function loadTeachings(threadID) {
 
 function saveTeachings(threadID, data) {
   fs.writeFileSync(
-    `\( {MEMORY_DIR}/teach_ \){threadID}.json`,
+    `${MEMORY_DIR}/teach_${threadID}.json`,
     JSON.stringify(data, null, 2),
   );
 }
@@ -112,11 +105,11 @@ function buildTeachingContext(threadID) {
 }
 
 // =====================================================
-// CONVERSATION MEMORY (আলাদা ফাইল _sona.json)
+// CONVERSATION MEMORY
 // =====================================================
 
 function loadMemory(uid) {
-  const file = `\( {MEMORY_DIR}/ \){uid}_sona.json`;
+  const file = `${MEMORY_DIR}/${uid}_llama.json`;
   if (!fs.existsSync(file)) return [];
   try {
     return JSON.parse(fs.readFileSync(file, "utf8"));
@@ -128,16 +121,16 @@ function loadMemory(uid) {
 function saveMemory(uid, memory) {
   if (memory.length > MAX_MEMORY) memory = memory.slice(-MAX_MEMORY);
   fs.writeFileSync(
-    `\( {MEMORY_DIR}/ \){uid}_sona.json`,
+    `${MEMORY_DIR}/${uid}_llama.json`,
     JSON.stringify(memory, null, 2),
   );
 }
 
 // =====================================================
-// CHAT (Moyna-এর মতোই structure)
+// CHAT
 // =====================================================
 
-async function chatWithSona(userId, prompt, threadID, retry = 0) {
+async function chatWithLlama4(userId, prompt, threadID, retry = 0) {
   const apiKey = process.env.LLAMA_API_KEY;
   if (!apiKey) return "🔑 LLAMA_API_KEY সেট নেই .env ফাইলে।";
 
@@ -174,9 +167,10 @@ async function chatWithSona(userId, prompt, threadID, retry = 0) {
     saveMemory(userId, memory);
     return reply;
   } catch (err) {
+    console.error("[LLAMA4] Error:", err.response?.data || err.message);
     if (err.response?.status === 429 && retry < 2) {
       await new Promise((r) => setTimeout(r, 4000));
-      return chatWithSona(userId, prompt, threadID, retry + 1);
+      return chatWithLlama4(userId, prompt, threadID, retry + 1);
     }
     if (err.response?.status === 401) return "🔑 Groq API key ভুল আছে।";
     if (err.response?.status === 503)
@@ -186,20 +180,20 @@ async function chatWithSona(userId, prompt, threadID, retry = 0) {
 }
 
 // =====================================================
-// HELPERS (Moyna-এর মতোই, name change)
+// HELPERS
 // =====================================================
 
-function parseSonaText(body) {
+function parseMoynaText(body) {
   const norm = body.normalize("NFC");
   const lower = norm.toLowerCase();
-  if (lower.startsWith("sona")) return norm.slice(4).trim();
-  if (norm.startsWith(SONA_BN)) return norm.slice(SONA_BN.length).trim();
+  if (lower.startsWith("moyna")) return norm.slice(5).trim();
+  if (norm.startsWith(MOYNA_BN)) return norm.slice(MOYNA_BN.length).trim();
   return null;
 }
 
-function isSonaCall(body) {
+function isMoynaCall(body) {
   const norm = body.normalize("NFC");
-  return norm.toLowerCase().startsWith("sona") || norm.startsWith(SONA_BN);
+  return norm.toLowerCase().startsWith("moyna") || norm.startsWith(MOYNA_BN);
 }
 
 async function getUserName(api, uid) {
@@ -213,10 +207,11 @@ async function getUserName(api, uid) {
   }
 }
 
-async function handleSonaMessage(api, event, text) {
+async function handleMoynaMessage(api, event, text) {
   const userId = event.senderID;
   const threadID = event.threadID;
 
+  // ---- শিখো / শেখো / learn ----
   const teachMatch = text.match(/^(শিখো|শেখো|learn|শিখ|শেখা)\s+(.+)/isu);
   if (teachMatch) {
     const content = teachMatch[2].trim();
@@ -229,6 +224,7 @@ async function handleSonaMessage(api, event, text) {
     );
   }
 
+  // ---- ভুলে যাও / forget ----
   const forgetMatch = text.match(/^(ভুলে\s*যাও|forget|ভুল)\s+(.+)/isu);
   if (forgetMatch) {
     const kw = forgetMatch[2].trim();
@@ -247,6 +243,7 @@ async function handleSonaMessage(api, event, text) {
       );
   }
 
+  // ---- কী শিখেছো ----
   if (
     /^(কী\s*শিখেছো|কি\s*শিখেছ|শেখা\s*দেখাও|what.*(know|learn)|তুমি\s*কী\s*জানো|কি\s*জানো)/isu.test(
       text,
@@ -255,7 +252,7 @@ async function handleSonaMessage(api, event, text) {
     const data = loadTeachings(threadID);
     if (!data.length)
       return api.sendMessage(
-        "📭 আমাকে এখনো কিছু শেখানো হয়নি এই গ্রুপে।\n\nশেখাতে চাইলে লেখো:\nসোনা শিখো <তথ্য>",
+        "📭 আমাকে এখনো কিছু শেখানো হয়নি এই গ্রুপে।\n\nশেখাতে চাইলে লেখো:\nময়না শিখো <তথ্য>",
         threadID,
         event.messageID,
       );
@@ -269,10 +266,11 @@ async function handleSonaMessage(api, event, text) {
     );
   }
 
+  // ---- memory clear ----
   if (
     /^(clear|মেমরি\s*ক্লিয়ার|ভুলে\s*যাও\s*সব|সব\s*ভুলে\s*যাও)/isu.test(text)
   ) {
-    const file = `\( {MEMORY_DIR}/ \){userId}_sona.json`;
+    const file = `${MEMORY_DIR}/${userId}_llama.json`;
     if (fs.existsSync(file)) fs.unlinkSync(file);
     return api.sendMessage(
       "🧹 তোমার সাথে আমার সব কথা মুছে দিলাম। নতুন করে শুরু করি? 🌸",
@@ -281,6 +279,7 @@ async function handleSonaMessage(api, event, text) {
     );
   }
 
+  // ---- Normal chat ----
   if (!text) {
     return api.sendMessage(
       "বলোনা কিছু 🩷 সোনা শুনছে…",
@@ -289,13 +288,13 @@ async function handleSonaMessage(api, event, text) {
     );
   }
 
-  if (!global.lastSona) global.lastSona = {};
+  if (!global.lastLlama4) global.lastLlama4 = {};
   const cooldown = parseInt(process.env.AI_COOLDOWN || "10") * 1000;
   const now = Date.now();
 
-  if (global.lastSona[userId] && now - global.lastSona[userId] < cooldown) {
+  if (global.lastLlama4[userId] && now - global.lastLlama4[userId] < cooldown) {
     const wait = Math.ceil(
-      (cooldown - (now - global.lastSona[userId])) / 1000,
+      (cooldown - (now - global.lastLlama4[userId])) / 1000,
     );
     return api.sendMessage(
       `⏳ ${wait}s অপেক্ষা করো প্রিয়…`,
@@ -304,8 +303,8 @@ async function handleSonaMessage(api, event, text) {
     );
   }
 
-  global.lastSona[userId] = now;
-  const reply = await chatWithSona(userId, text, threadID);
+  global.lastLlama4[userId] = now;
+  const reply = await chatWithLlama4(userId, text, threadID);
 
   api.sendMessage(
     reply,
@@ -329,36 +328,36 @@ async function handleSonaMessage(api, event, text) {
 
 module.exports.config = {
   name: "sona",
-  version: "1.0.0",
+  version: "3.0.0",
   credits: "Robin-Bot ❤️",
-  aliases: ["সোনা", "sona2"],
-  description: "Sona AI — শেখানো যায়, মনে রাখে, NSFW partner 😈",
-  commandCategory: "nsfw",
+  aliases: ["", "", "", ""],
+  description: "Moyna AI — শেখানো যায়, মনে রাখে, বন্ধু হয় 🧠",
+  commandCategory: "chat",
   cooldowns: 1,
   hasPermssion: 0,
 };
 
 // =====================================================
-// PREFIX COMMAND: /sona
+// PREFIX COMMAND: /moyna
 // =====================================================
 
 module.exports.run = async function ({ api, event, args }) {
   const text = args.join(" ").trim();
-  await handleSonaMessage(api, event, text);
+  await handleMoynaMessage(api, event, text);
 };
 
 // =====================================================
-// NO-PREFIX: "sona ..." বা "সোনা ..."
+// NO-PREFIX: "moyna ..." বা "ময়না ..."
 // =====================================================
 
 module.exports.handleEvent = async function ({ api, event }) {
   const body = (event.body || "").trim();
   const prefix = global.config?.PREFIX || "/";
   if (body.startsWith(prefix)) return;
-  if (!isSonaCall(body)) return;
-  const text = parseSonaText(body);
+  if (!isMoynaCall(body)) return;
+  const text = parseMoynaText(body);
   if (text === null) return;
-  await handleSonaMessage(api, event, text);
+  await handleMoynaMessage(api, event, text);
 };
 
 // =====================================================
@@ -371,7 +370,7 @@ module.exports.handleReply = async function ({ api, event, handleReply }) {
   if (event.body && event.body.startsWith(prefix)) return;
 
   const threadID = handleReply.threadID || event.threadID;
-  const reply = await chatWithSona(event.senderID, event.body, threadID);
+  const reply = await chatWithLlama4(event.senderID, event.body, threadID);
 
   api.sendMessage(
     reply,
