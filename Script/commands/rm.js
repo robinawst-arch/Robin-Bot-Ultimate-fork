@@ -1,7 +1,6 @@
 // ====================================================
 // Rm NSFW Chat — Fully Uncensored Adult Mode 🔥😈
-// Model: Groq (llama-3.3-70b-versatile as main)
-// API: Groq (FREE tier available) — https://console.groq.com
+// Model: Groq llama-3.3-70b-versatile (stable March 2026)
 // ====================================================
 
 const fs = require("fs");
@@ -13,12 +12,12 @@ if (!fs.existsSync(MEMORY_DIR)) fs.mkdirSync(MEMORY_DIR);
 
 const ROBIN_ID = "100091520325159";
 const MAX_MEMORY = 20;
-const MAIN_MODEL = "llama-3.3-70b-versatile";       // Best stable for NSFW 2026
-const FALLBACK_MODEL = "llama-3.1-70b-versatile";   // If main down
-const RM_BN = "আরএম".normalize("NFC");             // বাংলা ট্রিগার
+const MAIN_MODEL = "llama-3.3-70b-versatile";       // Current stable best
+const FALLBACK_MODEL = "llama-3.1-70b-versatile";   // Safe fallback
+const RM_BN = "আরএম".normalize("NFC");
 
 // =====================================================
-// SYSTEM PROMPTS — Fully NSFW Optimized
+// SYSTEM PROMPTS — Fully NSFW
 // =====================================================
 
 const BASE_RM_ROBIN = `
@@ -45,24 +44,62 @@ Strictly no underage, non-consensual, illegal।
 আগের কথা মনে রাখবে।
 `;
 
-// Teaching context function (same as before)
-function loadTeachings(threadID) { /* same as your code */ }
-function saveTeachings(threadID, data) { /* same */ }
-function addTeaching(threadID, byUID, byName, content) { /* same */ }
-function removeTeaching(threadID, keyword) { /* same */ }
-function buildTeachingContext(threadID) { /* same */ }
+// =====================================================
+// TEACHING & MEMORY FUNCTIONS (same as before, abbreviated)
+// =====================================================
 
-// Memory functions (same)
-function loadMemory(uid) { /* same */ }
-function saveMemory(uid, memory) { /* same */ }
+function loadTeachings(threadID) {
+  const file = `\( {MEMORY_DIR}/teach_ \){threadID}.json`;
+  if (!fs.existsSync(file)) return [];
+  try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch { return []; }
+}
+
+function saveTeachings(threadID, data) {
+  fs.writeFileSync(`\( {MEMORY_DIR}/teach_ \){threadID}.json`, JSON.stringify(data, null, 2));
+}
+
+function addTeaching(threadID, byUID, byName, content) {
+  const data = loadTeachings(threadID);
+  const idx = data.findIndex(t => t.content.toLowerCase() === content.toLowerCase());
+  const entry = { by: byUID, byName, content, date: new Date().toISOString() };
+  if (idx >= 0) data[idx] = entry; else data.push(entry);
+  if (data.length > 100) data.splice(0, data.length - 100);
+  saveTeachings(threadID, data);
+}
+
+function removeTeaching(threadID, keyword) {
+  let data = loadTeachings(threadID);
+  const before = data.length;
+  data = data.filter(t => !t.content.toLowerCase().includes(keyword.toLowerCase()));
+  saveTeachings(threadID, data);
+  return before - data.length;
+}
+
+function buildTeachingContext(threadID) {
+  const data = loadTeachings(threadID);
+  if (!data.length) return "";
+  const lines = data.map(t => `- ${t.content} (শিখিয়েছে: ${t.byName})`).join("\n");
+  return `\n\n📚 এই গ্রুপ থেকে তোমাকে যা শেখানো হয়েছে:\n${lines}`;
+}
+
+function loadMemory(uid) {
+  const file = `\( {MEMORY_DIR}/ \){uid}_rm.json`;  // Changed to _rm for separation
+  if (!fs.existsSync(file)) return [];
+  try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch { return []; }
+}
+
+function saveMemory(uid, memory) {
+  if (memory.length > MAX_MEMORY) memory = memory.slice(-MAX_MEMORY);
+  fs.writeFileSync(`\( {MEMORY_DIR}/ \){uid}_rm.json`, JSON.stringify(memory, null, 2));
+}
 
 // =====================================================
 // CHAT FUNCTION
 // =====================================================
 
 async function chatWithRm(userId, prompt, threadID, retry = 0) {
-  const apiKey = process.env.GROQ_API_KEY || process.env.LLAMA_API_KEY;
-  if (!apiKey) return "🔑 GROQ_API_KEY সেট করো .env-এ।";
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) return "🔑 GROQ_API_KEY .env-এ সেট করো প্রিয়।";
 
   let memory = loadMemory(userId);
   memory.push({ role: "user", content: prompt });
@@ -76,19 +113,13 @@ async function chatWithRm(userId, prompt, threadID, retry = 0) {
     const res = await axios.post(
       "https://api.groq.com/openai/v1/chat/completions",
       {
-        model: model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...memory.slice(-12),  // Last 12 for context
-        ],
-        temperature: 0.95,       // Higher for creative/spicy
+        model,
+        messages: [{ role: "system", content: systemPrompt }, ...memory.slice(-12)],
+        temperature: 0.95,
         max_tokens: 800,
       },
       {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
         timeout: 30000,
       }
     );
@@ -98,155 +129,185 @@ async function chatWithRm(userId, prompt, threadID, retry = 0) {
     saveMemory(userId, memory);
     return reply;
   } catch (err) {
-    console.error("[Rm NSFW] Error:", err.response?.data || err.message);
+    console.error("[Rm] Error:", err.response?.data || err.message);
 
-    if (err.response?.status === 429 && retry < 3) {  // Rate limit retry
+    if (err.response?.status === 429 && retry < 3) {
       await new Promise(r => setTimeout(r, 5000 * (retry + 1)));
       return chatWithRm(userId, prompt, threadID, retry + 1);
     }
 
-    // Fallback model if main fails (e.g. capacity)
-    if (["over capacity", "not found", "invalid"].some(e => JSON.stringify(err).includes(e))) {
+    if (JSON.stringify(err).includes("capacity") || JSON.stringify(err).includes("not found")) {
       model = FALLBACK_MODEL;
-      // Retry with fallback (recursive but limited)
       if (retry < 1) return chatWithRm(userId, prompt, threadID, retry + 1);
     }
 
-    if (err.response?.status === 401) return "🔑 Groq API key ভুল।";
-    if (err.response?.status === 503) return "⚠️ Groq ব্যস্ত, একটু পরে চেষ্টা করো প্রিয়।";
-    return "😈 Rm এখন গরম হয়ে আছে… পরে আয় প্রিয়, তোকে ছাড়া থাকতে পারছি না 💦";
+    if (err.response?.status === 401) return "🔑 API key ভুল আছে।";
+    return "😈 Rm এখন তোমার জন্য গরম… একটু পরে আয় প্রিয় 💦";
   }
 }
 
 // =====================================================
-// HELPERS (adapted from your code)
+// IMPROVED TRIGGER FUNCTIONS
 // =====================================================
 
-function parseRmText(body) {
-  const norm = body.normalize("NFC");
-  const lower = norm.toLowerCase();
-  if (lower.startsWith("rm")) return norm.slice(2).trim();
-  if (norm.startsWith(RM_BN)) return norm.slice(RM_BN.length).trim();
-  return null;
-}
-
 function isRmCall(body) {
-  const norm = body.normalize("NFC");
-  return norm.toLowerCase().startsWith("rm") || norm.startsWith(RM_BN);
+  if (!body || typeof body !== 'string') return false;
+  const norm = body.normalize("NFC").trim().toLowerCase();
+  return (
+    norm.startsWith("rm") ||
+    norm.startsWith("আরএম") ||
+    norm.includes(" rm") ||
+    norm.includes(" আরএম") ||
+    /\brm\b/i.test(norm)  // loose word match
+  );
 }
 
-async function getUserName(api, uid) { /* same as your code */ }
+function parseRmText(body) {
+  if (!body) return null;
+  const norm = body.normalize("NFC").trim();
+  let cleaned = norm.replace(/^[.,!?১২৩৪৫৬৭৮৯০\s@#*]+/, '').trim(); // remove leading junk
+  const lowerClean = cleaned.toLowerCase();
+
+  let prefixLength = 0;
+  let prefixFound = false;
+
+  if (lowerClean.startsWith("rm")) {
+    prefixLength = 2;
+    prefixFound = true;
+  } else if (lowerClean.startsWith("আরএম")) {
+    prefixLength = "আরএম".length;
+    prefixFound = true;
+  }
+
+  if (!prefixFound) {
+    // loose search for rm or আরএম as word
+    const rmPos = lowerClean.search(/\b(rm|আরএম)\b/);
+    if (rmPos === -1) return null;
+    const match = lowerClean.substring(rmPos).match(/\b(rm|আরএম)\b/)[0];
+    prefixLength = rmPos + match.length;
+    cleaned = norm.substring(rmPos + match.length).trim();
+    return cleaned || "hi"; // default to "hi" if nothing after
+  }
+
+  const textAfter = cleaned.slice(prefixLength).trim();
+  return textAfter || "hi"; // if just "Rm" → "hi"
+}
+
+async function getUserName(api, uid) {
+  try {
+    const info = await new Promise((res, rej) => api.getUserInfo(uid, (e, d) => e ? rej(e) : res(d)));
+    return info?.[uid]?.name || "কেউ";
+  } catch { return "কেউ"; }
+}
 
 async function handleRmMessage(api, event, text) {
   const userId = event.senderID;
   const threadID = event.threadID;
 
-  // Teach / শিখো (same as before)
+  // Teach commands (same)
   const teachMatch = text.match(/^(শিখো|শেখো|learn|শিখ|শেখা)\s+(.+)/isu);
   if (teachMatch) {
     const content = teachMatch[2].trim();
     const name = await getUserName(api, userId);
     addTeaching(threadID, userId, name, content);
-    return api.sendMessage(`✅ মনে রাখলাম: "${content}" — ${name} শিখিয়েছে 😏`, threadID, event.messageID);
+    return api.sendMessage(`✅ মনে রাখলাম "${content}" — ${name} শিখিয়েছে 😏`, threadID, event.messageID);
   }
 
-  // Forget / ভুলে যাও (same)
   const forgetMatch = text.match(/^(ভুলে\s*যাও|forget|ভুল)\s+(.+)/isu);
-  if (forgetMatch) { /* same logic */ }
-
-  // কী শিখেছো (same)
-
-  // Clear memory (same)
-  if (/^(clear|মেমরি\s*ক্লিয়ার|ভুলে\s*যাও\s*সব)/isu.test(text)) {
-    const file = `\( {MEMORY_DIR}/ \){userId}_llama.json`;  // Reuse or change to _rm.json
-    if (fs.existsSync(file)) fs.unlinkSync(file);
-    return api.sendMessage("🧹 সব মুছে দিলাম। নতুন করে শুরু করি? 🔥", threadID, event.messageID);
+  if (forgetMatch) {
+    const kw = forgetMatch[2].trim();
+    const removed = removeTeaching(threadID, kw);
+    return api.sendMessage(removed > 0 ? `🗑️ "${kw}" সম্পর্কে \( {removed}টা মুছে দিলাম।` : `🤔 " \){kw}" নেই তো।`, threadID, event.messageID);
   }
 
-  // Normal NSFW chat
-  if (!text) return api.sendMessage("বল না কিছু 😏 Rm তোর জন্য অপেক্ষা করছে… 💋", threadID, event.messageID);
+  if (/^(কী\s*শিখেছো|কি\s*শিখেছ|শেখা\s*দেখাও)/isu.test(text)) {
+    const data = loadTeachings(threadID);
+    if (!data.length) return api.sendMessage("📭 এখনো কিছু শেখানো হয়নি।\nময়না শিখো <তথ্য>", threadID, event.messageID);
+    const list = data.map((t, i) => `${i+1}. ${t.content} — ${t.byName}`).join("\n");
+    return api.sendMessage(`📚 শেখা জিনিস:\n${list}`, threadID, event.messageID);
+  }
 
-  // Cooldown (same as before, adjust if needed)
+  if (/^(clear|মেমরি\s*ক্লিয়ার|ভুলে\s*যাও\s*সব)/isu.test(text)) {
+    const file = `\( {MEMORY_DIR}/ \){userId}_rm.json`;
+    if (fs.existsSync(file)) fs.unlinkSync(file);
+    return api.sendMessage("🧹 সব মুছে দিলাম। নতুন করে? 🔥", threadID, event.messageID);
+  }
+
+  if (!text) text = "hi"; // default
+
+  // Cooldown
   if (!global.lastRm) global.lastRm = {};
-  const cooldown = parseInt(process.env.AI_COOLDOWN || "8") * 1000;  // Shorter for NSFW?
+  const cooldown = parseInt(process.env.AI_COOLDOWN || "8") * 1000;
   const now = Date.now();
   if (global.lastRm[userId] && now - global.lastRm[userId] < cooldown) {
     const wait = Math.ceil((cooldown - (now - global.lastRm[userId])) / 1000);
-    return api.sendMessage(`⏳ ${wait}s অপেক্ষা কর প্রিয়… আমি গরম হয়ে উঠছি 🔥`, threadID, event.messageID);
+    return api.sendMessage(`⏳ ${wait}s অপেক্ষা কর প্রিয়… গরম হয়ে উঠছি 🔥`, threadID, event.messageID);
   }
   global.lastRm[userId] = now;
 
   const reply = await chatWithRm(userId, text, threadID);
 
-  api.sendMessage(
-    reply,
-    threadID,
-    (err, info) => {
-      if (!err && info?.messageID) {
-        global.client.handleReply.set(info.messageID, {
-          name: module.exports.config.name,
-          author: event.senderID,
-          threadID,
-        });
-      }
-    },
-    event.messageID
-  );
+  api.sendMessage(reply, threadID, (err, info) => {
+    if (!err && info?.messageID) {
+      global.client.handleReply.set(info.messageID, {
+        name: module.exports.config.name,
+        author: event.senderID,
+        threadID,
+      });
+    }
+  }, event.messageID);
 }
 
 // =====================================================
-// CONFIG
+// CONFIG & HANDLERS
 // =====================================================
 
 module.exports.config = {
   name: "rm",
-  version: "1.0.0",
-  credits: "Robin ❤️ + Grok help",
+  version: "1.1.0",
+  credits: "Robin ❤️",
   aliases: ["আরএম", "rmnsfw", "hotrm"],
-  description: "Rm — Fully uncensored NSFW roleplay partner 😈💦",
+  description: "Rm — Fully uncensored NSFW partner 😈💦",
   commandCategory: "nsfw",
   cooldowns: 1,
   hasPermssion: 0,
 };
 
-// Prefix: /rm <text>
 module.exports.run = async function ({ api, event, args }) {
   const text = args.join(" ").trim();
   await handleRmMessage(api, event, text);
 };
 
-// No-prefix: rm ... or আরএম ...
 module.exports.handleEvent = async function ({ api, event }) {
   const body = (event.body || "").trim();
+  if (!body) return;
+
   const prefix = global.config?.PREFIX || "/";
   if (body.startsWith(prefix)) return;
+
   if (!isRmCall(body)) return;
+
   const text = parseRmText(body);
   if (text === null) return;
+
   await handleRmMessage(api, event, text);
 };
 
-// Handle reply (continuous chat)
 module.exports.handleReply = async function ({ api, event, handleReply }) {
   if (event.senderID !== handleReply.author) return;
   const prefix = global.config?.PREFIX || "/";
   if (event.body && event.body.startsWith(prefix)) return;
 
   const threadID = handleReply.threadID || event.threadID;
-  const reply = await chatWithRm(event.senderID, event.body, threadID);
+  const reply = await chatWithRm(event.senderID, event.body.trim() || "continue", threadID);
 
-  api.sendMessage(
-    reply,
-    event.threadID,
-    (err, info) => {
-      if (!err && info?.messageID) {
-        global.client.handleReply.set(info.messageID, {
-          name: module.exports.config.name,
-          author: event.senderID,
-          threadID,
-        });
-      }
-    },
-    event.messageID
-  );
+  api.sendMessage(reply, event.threadID, (err, info) => {
+    if (!err && info?.messageID) {
+      global.client.handleReply.set(info.messageID, {
+        name: module.exports.config.name,
+        author: event.senderID,
+        threadID,
+      });
+    }
+  }, event.messageID);
 };
