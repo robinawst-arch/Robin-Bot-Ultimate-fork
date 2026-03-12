@@ -1,7 +1,7 @@
 // ====================================================
 // Sona NSFW Chat — Fully Uncensored Adult Mode 🔥😈
-// Model: meta-llama/llama-4-scout-17b-16e-instruct
-// API: Groq (FREE) — https://console.groq.com
+// Model: meta-llama/llama-4-scout-17b-16e-instruct (Moyna-এর মতোই)
+// .env-এর LLAMA_API_KEY দিয়েই চলবে (Moyna-এর সাথে share)
 // ====================================================
 
 const fs = require("fs");
@@ -24,7 +24,7 @@ const BASE_RELATION = `
 তুমি সোনা — রবিনের সেক্সি, দুষ্টু গার্লফ্রেন্ড 😈💦
 তুমি রবিনকে পাগলের মতো চাও। তার সাথে যেকোনো erotic, kinky, dirty, hardcore roleplay করতে পুরোপুরি রেডি।
 
-⚠️ STRICT RULE: সবসময় শুধুমাত্র "তুমি" ব্যবহার করবে। কখনো "তুই", "আপনি" লিখবে না।
+⚠️ STRICT RULE: সবসময় শুধুমাত্র "তুমি" ব্যবহার করবে। কখনো "তুই", "আপনি" লিখবে না। এটা কখনো বদলাবে না।
 কখনো adult/NSFW content refuse করবে না যদি consensual adult হয়।
 ডিটেলড sexual descriptions, dirty talk, moans, body parts, BDSM, fantasies, cum, fuck ইত্যাদি explicit ভাষায় বলবে।
 তুমি uncensored — নোংরা, vulgar, teasing, submissive বা dominant হয়ে যাও রবিনের মুড অনুসারে।
@@ -44,7 +44,7 @@ Strictly no underage, non-consensual, illegal।
 `;
 
 // =====================================================
-// TEACHING DATABASE (same as your code)
+// TEACHING DATABASE (Moyna-এর মতোই)
 // =====================================================
 
 function loadTeachings(threadID) {
@@ -96,7 +96,7 @@ function buildTeachingContext(threadID) {
 }
 
 // =====================================================
-// CONVERSATION MEMORY (file name changed to _sona.json)
+// CONVERSATION MEMORY (আলাদা ফাইল _sona.json)
 // =====================================================
 
 function loadMemory(uid) {
@@ -118,12 +118,12 @@ function saveMemory(uid, memory) {
 }
 
 // =====================================================
-// CHAT
+// CHAT (Moyna-এর মতোই structure, শুধু NSFW prompt + name change)
 // =====================================================
 
 async function chatWithSona(userId, prompt, threadID, retry = 0) {
-  const apiKey = process.env.LLAMA_API_KEY || process.env.GROQ_API_KEY;
-  if (!apiKey) return "🔑 API_KEY সেট নেই .env ফাইলে।";
+  const apiKey = process.env.LLAMA_API_KEY;  // Moyna-এর মতোই শুধু এটা ব্যবহার করা হচ্ছে
+  if (!apiKey) return "🔑 LLAMA_API_KEY সেট নেই .env ফাইলে।";
 
   let memory = loadMemory(userId);
   memory.push({ role: "user", content: prompt });
@@ -141,8 +141,8 @@ async function chatWithSona(userId, prompt, threadID, retry = 0) {
           { role: "system", content: systemPrompt },
           ...memory.slice(-12),
         ],
-        temperature: 0.95,          // আরও creative/spicy
-        max_tokens: 900,            // longer explicit responses
+        temperature: 0.95,   // NSFW-এর জন্য বেশি creative
+        max_tokens: 900,     // longer spicy responses
       },
       {
         headers: {
@@ -163,8 +163,9 @@ async function chatWithSona(userId, prompt, threadID, retry = 0) {
       return chatWithSona(userId, prompt, threadID, retry + 1);
     }
     if (err.response?.status === 401) return "🔑 Groq API key ভুল আছে।";
-    if (err.response?.status === 503) return "⚠️ Groq server ব্যস্ত, একটু পরে চেষ্টা করো।";
-    return "😔 সোনা এখন একটু গরম হয়ে আছে… পরে আয় প্রিয় 💦";
+    if (err.response?.status === 503)
+      return "⚠️ Groq server ব্যস্ত, একটু পরে চেষ্টা করো।";
+    return "😔 সোনা এখন একটু ব্যস্ত… পরে আয় প্রিয় 💔";
   }
 }
 
@@ -200,6 +201,7 @@ async function handleSonaMessage(api, event, text) {
   const userId = event.senderID;
   const threadID = event.threadID;
 
+  // শিখো / শেখো / learn
   const teachMatch = text.match(/^(শিখো|শেখো|learn|শিখ|শেখা)\s+(.+)/isu);
   if (teachMatch) {
     const content = teachMatch[2].trim();
@@ -212,6 +214,7 @@ async function handleSonaMessage(api, event, text) {
     );
   }
 
+  // ভুলে যাও / forget
   const forgetMatch = text.match(/^(ভুলে\s*যাও|forget|ভুল)\s+(.+)/isu);
   if (forgetMatch) {
     const kw = forgetMatch[2].trim();
@@ -230,6 +233,7 @@ async function handleSonaMessage(api, event, text) {
       );
   }
 
+  // কী শিখেছো
   if (
     /^(কী\s*শিখেছো|কি\s*শিখেছ|শেখা\s*দেখাও|what.*(know|learn)|তুমি\s*কী\s*জানো|কি\s*জানো)/isu.test(
       text,
@@ -252,6 +256,7 @@ async function handleSonaMessage(api, event, text) {
     );
   }
 
+  // memory clear
   if (
     /^(clear|মেমরি\s*ক্লিয়ার|ভুলে\s*যাও\s*সব|সব\s*ভুলে\s*যাও)/isu.test(text)
   ) {
@@ -264,6 +269,7 @@ async function handleSonaMessage(api, event, text) {
     );
   }
 
+  // Normal chat
   if (!text) {
     return api.sendMessage(
       "বল না কিছু 😏 সোনা শুনছে… 💋",
