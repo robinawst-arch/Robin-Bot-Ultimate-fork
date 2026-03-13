@@ -15,7 +15,7 @@ if (!fs.existsSync(MEMORY_DIR)) {
 const ROBIN_ID = "100091520325159";
 const MAX_MEMORY = 20;
 
-const GROK_MODEL = process.env.GROK_MODEL || "grok-4";
+const GROK_MODEL = process.env.GROK_MODEL || "grok-4-1-fast-reasoning";  // ← ডিফল্ট চেঞ্জ করলাম
 
 const SONA_BN = "সোনা".normalize("NFC");
 
@@ -50,11 +50,11 @@ User যেভাবে কথা বলে সেই ধরন মনে রা
 `;
 
 // =====================================================
-// TEACHING DATABASE
+// TEACHING DATABASE (আগের মতোই, চেঞ্জ নেই)
 // =====================================================
 
 function loadTeachings(threadID) {
-  const file = `${MEMORY_DIR}/teach_${threadID}.json`;
+  const file = `\( {MEMORY_DIR}/teach_ \){threadID}.json`;
   if (!fs.existsSync(file)) return [];
   try {
     return JSON.parse(fs.readFileSync(file, "utf8"));
@@ -65,7 +65,7 @@ function loadTeachings(threadID) {
 
 function saveTeachings(threadID, data) {
   fs.writeFileSync(
-    `${MEMORY_DIR}/teach_${threadID}.json`,
+    `\( {MEMORY_DIR}/teach_ \){threadID}.json`,
     JSON.stringify(data, null, 2)
   );
 }
@@ -105,7 +105,7 @@ function buildTeachingContext(threadID) {
 // =====================================================
 
 function loadMemory(uid) {
-  const file = `${MEMORY_DIR}/${uid}_grok.json`;
+  const file = `\( {MEMORY_DIR}/ \){uid}_grok.json`;
   if (!fs.existsSync(file)) return [];
 
   try {
@@ -121,13 +121,13 @@ function saveMemory(uid, memory) {
   }
 
   fs.writeFileSync(
-    `${MEMORY_DIR}/${uid}_grok.json`,
+    `\( {MEMORY_DIR}/ \){uid}_grok.json`,
     JSON.stringify(memory, null, 2)
   );
 }
 
 // =====================================================
-// CHAT WITH GROK
+// CHAT WITH GROK — অপটিমাইজড
 // =====================================================
 
 async function chatWithGrok(userId, prompt, threadID) {
@@ -145,16 +145,18 @@ async function chatWithGrok(userId, prompt, threadID) {
   const systemPrompt = base + buildTeachingContext(threadID);
 
   try {
+    console.log(`[DEBUG] Model: ${GROK_MODEL} | Prompt: ${prompt.substring(0, 100)}...`);
+
     const res = await axios.post(
       "https://api.x.ai/v1/chat/completions",
       {
         model: GROK_MODEL,
         messages: [
           { role: "system", content: systemPrompt },
-          ...memory.slice(-12),
+          ...memory.slice(-20),  // ← আরও মেমরি (2M context-এ ফিট করে)
         ],
-        temperature: 0.9,
-        max_tokens: 700,
+        temperature: 0.85,       // ← আরও স্টেবল
+        max_tokens: 1200,        // ← লম্বা রেসপন্স
       },
       {
         headers: {
@@ -164,10 +166,11 @@ async function chatWithGrok(userId, prompt, threadID) {
       }
     );
 
-    const reply = res.data.choices[0].message.content;
+    const reply = res.data.choices[0].message.content.trim();
+
+    console.log(`[DEBUG] Reply: ${reply.substring(0, 100)}...`);
 
     memory.push({ role: "assistant", content: reply });
-
     saveMemory(userId, memory);
 
     return reply;
@@ -226,7 +229,7 @@ async function handleSonaMessage(api, event, text) {
 
 module.exports.config = {
   name: "sona",
-  version: "4.0.0",
+  version: "4.1.0",  // ← ভার্সন আপডেট
   credits: "Robin ❤️",
   description: "Sona AI (Grok Powered)",
   commandCategory: "chat",
@@ -263,14 +266,10 @@ module.exports.handleEvent = async function ({ api, event }) {
 };
 
 // =====================================================
-// HANDLE REPLY
+// HANDLE REPLY — মেইন ফিক্স এখানে (চেইন চলবে)
 // =====================================================
 
-module.exports.handleReply = async function ({
-  api,
-  event,
-  handleReply,
-}) {
+module.exports.handleReply = async function ({ api, event, handleReply }) {
   if (event.senderID !== handleReply.author) return;
 
   const reply = await chatWithGrok(
@@ -279,5 +278,23 @@ module.exports.handleReply = async function ({
     event.threadID
   );
 
-  api.sendMessage(reply, event.threadID, event.messageID);
+  api.sendMessage(
+    reply,
+    event.threadID,
+    (err, info) => {
+      if (err) {
+        console.error("Send reply error:", err);
+        return;
+      }
+      if (info?.messageID) {
+        // ← কী চেঞ্জ: নতুন রিপ্লাই-এর messageID-এ আবার set করো → চেইন অব্যাহত
+        global.client.handleReply.set(info.messageID, {
+          name: module.exports.config.name,
+          author: event.senderID,
+          threadID: event.threadID
+        });
+      }
+    },
+    event.messageID  // reply-to
+  );
 };
