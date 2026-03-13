@@ -1,6 +1,6 @@
 // ====================================================
 // Sona AI — Grok Powered ❤️
-// Optimized Memory + Stable Reply Chain + Low Token
+// Facebook Safe Memory + Stable Reply Chain
 // ====================================================
 
 const fs = require("fs");
@@ -13,10 +13,12 @@ if (!fs.existsSync(MEMORY_DIR)) {
   fs.mkdirSync(MEMORY_DIR, { recursive: true });
 }
 
+global.client.handleReply = global.client.handleReply || new Map();
+
 const ROBIN_ID = "100091520325159";
 const MAX_MEMORY = 20;
 
-const GROK_MODEL = process.env.GROK_MODEL || "grok-4-1-fast-reasoning";
+const GROK_MODEL = process.env.GROK_MODEL || "grok-4-1-fast-non-reasoning";
 
 const SONA_BN = "সোনা".normalize("NFC");
 
@@ -68,13 +70,6 @@ function loadTeachings(threadID) {
   }
 }
 
-function saveTeachings(threadID, data) {
-  fs.writeFileSync(
-    `${MEMORY_DIR}/teach_${threadID}.json`,
-    JSON.stringify(data, null, 2)
-  );
-}
-
 function buildTeachingContext(threadID) {
   const data = loadTeachings(threadID);
 
@@ -89,11 +84,15 @@ function buildTeachingContext(threadID) {
 }
 
 // =====================================================
-// MEMORY SYSTEM
+// MEMORY
 // =====================================================
 
-function loadMemory(uid) {
-  const file = `${MEMORY_DIR}/${uid}_grok.json`;
+function getMemoryKey(userId, threadID) {
+  return `${threadID}_${userId}`;
+}
+
+function loadMemory(key) {
+  const file = `${MEMORY_DIR}/${key}.json`;
 
   if (!fs.existsSync(file)) return [];
 
@@ -104,13 +103,14 @@ function loadMemory(uid) {
   }
 }
 
-function saveMemory(uid, memory) {
+function saveMemory(key, memory) {
+
   if (memory.length > MAX_MEMORY) {
     memory = memory.slice(-MAX_MEMORY);
   }
 
   fs.writeFileSync(
-    `${MEMORY_DIR}/${uid}_grok.json`,
+    `${MEMORY_DIR}/${key}.json`,
     JSON.stringify(memory, null, 2)
   );
 }
@@ -127,14 +127,18 @@ async function chatWithGrok(userId, prompt, threadID) {
     return "🔑 GROK_API_KEY .env এ নেই";
   }
 
-  let memory = loadMemory(userId);
+  const memoryKey = getMemoryKey(userId, threadID);
+
+  let memory = loadMemory(memoryKey);
 
   memory.push({
     role: "user",
     content: prompt
   });
 
-  const base = userId === ROBIN_ID ? BASE_RELATION : BASE_GENERAL;
+  const base = String(userId) === String(ROBIN_ID)
+    ? BASE_RELATION
+    : BASE_GENERAL;
 
   const systemPrompt = base + buildTeachingContext(threadID);
 
@@ -166,21 +170,13 @@ async function chatWithGrok(userId, prompt, threadID) {
       content: reply
     });
 
-    saveMemory(userId, memory);
+    saveMemory(memoryKey, memory);
 
     return reply;
 
   } catch (err) {
 
     console.log("Grok Error:", err.response?.data || err.message);
-
-    if (err.response?.status === 401) {
-      return "🔑 Grok API key ভুল।";
-    }
-
-    if (err.response?.status === 429) {
-      return "⏳ Rate limit হয়েছে — একটু পরে চেষ্টা করো।";
-    }
 
     return "😔 সোনা এখন একটু ব্যস্ত… পরে বলো ভালোবাসা।";
   }
@@ -215,7 +211,7 @@ async function handleSonaMessage(api, event, text) {
       global.client.handleReply.set(info.messageID, {
         name: module.exports.config.name,
         author: userId,
-        threadID: threadID
+        threadID
       });
 
     },
@@ -229,15 +225,15 @@ async function handleSonaMessage(api, event, text) {
 
 module.exports.config = {
   name: "sona",
-  version: "5.1.0",
+  version: "6.0.0",
   credits: "Robin ❤️",
-  description: "Sona AI (Optimized Grok)",
+  description: "Sona AI Stable",
   commandCategory: "chat",
   cooldowns: 1
 };
 
 // =====================================================
-// PREFIX COMMAND
+// PREFIX
 // =====================================================
 
 module.exports.run = async function ({ api, event, args }) {
@@ -272,7 +268,7 @@ module.exports.handleEvent = async function ({ api, event }) {
 };
 
 // =====================================================
-// HANDLE REPLY (Conversation Continue)
+// HANDLE REPLY
 // =====================================================
 
 module.exports.handleReply = async function ({ api, event, handleReply }) {
