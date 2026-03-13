@@ -1,6 +1,6 @@
 // ====================================================
 // Sona AI — Grok Powered ❤️
-// Teaching + Memory + Roleplay (Fully Optimized + Reply Chain Fixed)
+// Optimized Memory + Stable Reply Chain + Low Token
 // ====================================================
 
 const fs = require("fs");
@@ -8,6 +8,7 @@ const axios = require("axios");
 require("dotenv").config();
 
 const MEMORY_DIR = "./memory";
+
 if (!fs.existsSync(MEMORY_DIR)) {
   fs.mkdirSync(MEMORY_DIR, { recursive: true });
 }
@@ -15,12 +16,12 @@ if (!fs.existsSync(MEMORY_DIR)) {
 const ROBIN_ID = "100091520325159";
 const MAX_MEMORY = 20;
 
-const GROK_MODEL = process.env.GROK_MODEL || "grok-4-1-fast-reasoning";  // সস্তা + সেরা
+const GROK_MODEL = process.env.GROK_MODEL || "grok-4-1-fast-reasoning";
 
 const SONA_BN = "সোনা".normalize("NFC");
 
 // =====================================================
-// SYSTEM PROMPTS (optimized + short response emphasis)
+// SYSTEM PROMPTS (UNCHANGED)
 // =====================================================
 
 const BASE_RELATION = `
@@ -52,12 +53,14 @@ User যেভাবে কথা বলে সেই ধরন মনে রা
 `;
 
 // =====================================================
-// TEACHING DATABASE (আগের মতো)
+// TEACHING DATABASE
 // =====================================================
 
 function loadTeachings(threadID) {
-  const file = `\( {MEMORY_DIR}/teach_ \){threadID}.json`;
+  const file = `${MEMORY_DIR}/teach_${threadID}.json`;
+
   if (!fs.existsSync(file)) return [];
+
   try {
     return JSON.parse(fs.readFileSync(file, "utf8"));
   } catch {
@@ -67,35 +70,18 @@ function loadTeachings(threadID) {
 
 function saveTeachings(threadID, data) {
   fs.writeFileSync(
-    `\( {MEMORY_DIR}/teach_ \){threadID}.json`,
+    `${MEMORY_DIR}/teach_${threadID}.json`,
     JSON.stringify(data, null, 2)
   );
 }
 
-function addTeaching(threadID, byUID, byName, content) {
-  const data = loadTeachings(threadID);
-
-  const entry = {
-    by: byUID,
-    byName,
-    content,
-    date: new Date().toISOString(),
-  };
-
-  data.push(entry);
-
-  if (data.length > 100) {
-    data.splice(0, data.length - 100);
-  }
-
-  saveTeachings(threadID, data);
-}
-
 function buildTeachingContext(threadID) {
   const data = loadTeachings(threadID);
+
   if (!data.length) return "";
 
   const lines = data
+    .slice(-5)
     .map((t) => `- ${t.content} (শিখিয়েছে: ${t.byName})`)
     .join("\n");
 
@@ -103,11 +89,12 @@ function buildTeachingContext(threadID) {
 }
 
 // =====================================================
-// MEMORY
+// MEMORY SYSTEM
 // =====================================================
 
 function loadMemory(uid) {
-  const file = `\( {MEMORY_DIR}/ \){uid}_grok.json`;
+  const file = `${MEMORY_DIR}/${uid}_grok.json`;
+
   if (!fs.existsSync(file)) return [];
 
   try {
@@ -123,16 +110,17 @@ function saveMemory(uid, memory) {
   }
 
   fs.writeFileSync(
-    `\( {MEMORY_DIR}/ \){uid}_grok.json`,
+    `${MEMORY_DIR}/${uid}_grok.json`,
     JSON.stringify(memory, null, 2)
   );
 }
 
 // =====================================================
-// CHAT WITH GROK — Optimized for low token cost
+// GROK CHAT
 // =====================================================
 
 async function chatWithGrok(userId, prompt, threadID) {
+
   const apiKey = process.env.GROK_API_KEY;
 
   if (!apiKey) {
@@ -140,14 +128,17 @@ async function chatWithGrok(userId, prompt, threadID) {
   }
 
   let memory = loadMemory(userId);
-  memory.push({ role: "user", content: prompt });
+
+  memory.push({
+    role: "user",
+    content: prompt
+  });
 
   const base = userId === ROBIN_ID ? BASE_RELATION : BASE_GENERAL;
 
   const systemPrompt = base + buildTeachingContext(threadID);
 
   try {
-    console.log(`[DEBUG] Model: ${GROK_MODEL} | User: ${prompt.substring(0, 80)}...`);
 
     const res = await axios.post(
       "https://api.x.ai/v1/chat/completions",
@@ -155,32 +146,41 @@ async function chatWithGrok(userId, prompt, threadID) {
         model: GROK_MODEL,
         messages: [
           { role: "system", content: systemPrompt },
-          ...memory.slice(-20),  // 20 টা মেমরি — ভালো ব্যালেন্স (input কম)
+          ...memory.slice(-10)
         ],
-        temperature: 0.8,        // কমালাম — আরও concise + মিষ্টি
-        max_tokens: 800,         // কমালাম — output টোকেন কমে খরচ কমবে
+        temperature: 0.6,
+        max_tokens: 200
       },
       {
         headers: {
           Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
+          "Content-Type": "application/json"
+        }
       }
     );
 
     const reply = res.data.choices[0].message.content.trim();
 
-    console.log(`[DEBUG] Reply: ${reply.substring(0, 80)}... | Usage: ${JSON.stringify(res.data.usage)}`);
+    memory.push({
+      role: "assistant",
+      content: reply
+    });
 
-    memory.push({ role: "assistant", content: reply });
     saveMemory(userId, memory);
 
     return reply;
-  } catch (err) {
-    console.error("Grok Error:", err.response?.data || err.message);
 
-    if (err.response?.status === 401) return "🔑 Grok API key ভুল।";
-    if (err.response?.status === 429) return "⏳ Rate limit হয়েছে — একটু পরে চেষ্টা করো।";
+  } catch (err) {
+
+    console.log("Grok Error:", err.response?.data || err.message);
+
+    if (err.response?.status === 401) {
+      return "🔑 Grok API key ভুল।";
+    }
+
+    if (err.response?.status === 429) {
+      return "⏳ Rate limit হয়েছে — একটু পরে চেষ্টা করো।";
+    }
 
     return "😔 সোনা এখন একটু ব্যস্ত… পরে বলো ভালোবাসা।";
   }
@@ -191,6 +191,7 @@ async function chatWithGrok(userId, prompt, threadID) {
 // =====================================================
 
 async function handleSonaMessage(api, event, text) {
+
   const userId = event.senderID;
   const threadID = event.threadID;
 
@@ -208,13 +209,15 @@ async function handleSonaMessage(api, event, text) {
     reply,
     threadID,
     (err, info) => {
-      if (!err && info?.messageID) {
-        global.client.handleReply.set(info.messageID, {
-          name: module.exports.config.name,
-          author: userId,
-          threadID,
-        });
-      }
+
+      if (err) return;
+
+      global.client.handleReply.set(info.messageID, {
+        name: module.exports.config.name,
+        author: userId,
+        threadID: threadID
+      });
+
     },
     event.messageID
   );
@@ -226,11 +229,11 @@ async function handleSonaMessage(api, event, text) {
 
 module.exports.config = {
   name: "sona",
-  version: "4.2.0",  // Updated version
+  version: "5.1.0",
   credits: "Robin ❤️",
-  description: "Sona AI (Grok Powered - Optimized)",
+  description: "Sona AI (Optimized Grok)",
   commandCategory: "chat",
-  cooldowns: 1,
+  cooldowns: 1
 };
 
 // =====================================================
@@ -238,8 +241,11 @@ module.exports.config = {
 // =====================================================
 
 module.exports.run = async function ({ api, event, args }) {
+
   const text = args.join(" ");
+
   await handleSonaMessage(api, event, text);
+
 };
 
 // =====================================================
@@ -247,12 +253,14 @@ module.exports.run = async function ({ api, event, args }) {
 // =====================================================
 
 module.exports.handleEvent = async function ({ api, event }) {
+
   const body = (event.body || "").trim();
 
   if (
     body.toLowerCase().startsWith("sona") ||
     body.startsWith(SONA_BN)
   ) {
+
     const text = body
       .replace(/^sona/i, "")
       .replace(SONA_BN, "")
@@ -260,13 +268,15 @@ module.exports.handleEvent = async function ({ api, event }) {
 
     await handleSonaMessage(api, event, text);
   }
+
 };
 
 // =====================================================
-// HANDLE REPLY — Chain fixed (প্রত্যেক রিপ্লাই-এ নতুন set)
+// HANDLE REPLY (Conversation Continue)
 // =====================================================
 
 module.exports.handleReply = async function ({ api, event, handleReply }) {
+
   if (event.senderID !== handleReply.author) return;
 
   const reply = await chatWithGrok(
@@ -279,18 +289,17 @@ module.exports.handleReply = async function ({ api, event, handleReply }) {
     reply,
     event.threadID,
     (err, info) => {
-      if (err) {
-        console.error("Send reply error:", err);
-        return;
-      }
-      if (info?.messageID) {
-        global.client.handleReply.set(info.messageID, {
-          name: module.exports.config.name,
-          author: event.senderID,
-          threadID: event.threadID
-        });
-      }
+
+      if (err) return;
+
+      global.client.handleReply.set(info.messageID, {
+        name: module.exports.config.name,
+        author: event.senderID,
+        threadID: event.threadID
+      });
+
     },
     event.messageID
   );
+
 };
