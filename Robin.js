@@ -27,7 +27,7 @@ setInterval(
 // ===================== IMPORTS =====================
 const fs = require("fs");
 const path = require("path");
-const login = require("priyanshu-fca");
+const login = require("fca-priyansh");
 
 const { log, banner, loadLanguage, initGetText } = require("./utils/helpers");
 const setupGlobals = require("./includes/globalSetup");
@@ -230,56 +230,59 @@ login({ appState: require(appStatePath) }, async (err, api) => {
       await checkReply(api, event, log);
     } catch {}
 
-    // ---------- RUN EVENTS BY logMessageType ----------
-    if (global.client.events && event.logMessageType) {
-      for (const evt of global.client.events.values()) {
-        if (evt.config?.eventType?.includes(event.logMessageType)) {
+    // ---------- RUN EVENTS (auto behaviors) ----------
+    if (!config.DISABLE_AUTO_BEHAVIORS) {
+      // Run event modules triggered by logMessageType
+      if (global.client.events && event.logMessageType) {
+        for (const evt of global.client.events.values()) {
+          if (evt.config?.eventType?.includes(event.logMessageType)) {
+            try {
+              await evt.run({
+                api,
+                event,
+                Users,
+                Threads,
+                getText: global.getText,
+              });
+            } catch {}
+          }
+        }
+      }
+
+      // Run event modules that use handleEvent
+      if (global.client.events) {
+        for (const evt of global.client.events.values()) {
+          if (typeof evt.handleEvent === "function") {
+            try {
+              await evt.handleEvent({
+                api,
+                event,
+                Users,
+                Threads,
+                getText: global.getText,
+              });
+            } catch {}
+          }
+        }
+      }
+
+      // Run no-prefix command event handlers (auto replies/reactions)
+      const seenCmds = new Set();
+      for (const cmd of global.client.commands.values()) {
+        if (seenCmds.has(cmd)) continue;
+        seenCmds.add(cmd);
+        if (typeof cmd.handleEvent === "function") {
           try {
-            await evt.run({
+            await cmd.handleEvent({
               api,
               event,
+              args: [],
               Users,
               Threads,
               getText: global.getText,
             });
           } catch {}
         }
-      }
-    }
-
-    // ---------- RUN EVENTS handleEvent ----------
-    if (global.client.events) {
-      for (const evt of global.client.events.values()) {
-        if (typeof evt.handleEvent === "function") {
-          try {
-            await evt.handleEvent({
-              api,
-              event,
-              Users,
-              Threads,
-              getText: global.getText,
-            });
-          } catch {}
-        }
-      }
-    }
-
-    // ---------- NO-PREFIX COMMAND EVENTS ----------
-    const seenCmds = new Set();
-    for (const cmd of global.client.commands.values()) {
-      if (seenCmds.has(cmd)) continue;
-      seenCmds.add(cmd);
-      if (typeof cmd.handleEvent === "function") {
-        try {
-          await cmd.handleEvent({
-            api,
-            event,
-            args: [],
-            Users,
-            Threads,
-            getText: global.getText,
-          });
-        } catch {}
       }
     }
 

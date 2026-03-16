@@ -9,7 +9,7 @@ const fs = require("fs");
 const path = require("path");
 const chalk = require("chalk");
 const moment = require("moment-timezone");
-const login = require("priyanshu-fca");
+const login = require("fca-priyansh");
 const figlet = require("figlet");
 const express = require("express");
 
